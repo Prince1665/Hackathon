@@ -1,0 +1,8 @@
+node_modules
+.next
+.vercel
+.git
+.gitignore
+Dockerfile
+pnpm-lock.yaml
+*.log

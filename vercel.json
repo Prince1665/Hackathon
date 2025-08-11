@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "pnpm build",
+  "installCommand": "pnpm i",
+  "outputDirectory": ".vercel/output",
+  "env": {
+    "DATABASE_URL": ""
+  }
+}
