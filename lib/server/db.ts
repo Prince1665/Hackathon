@@ -48,6 +48,15 @@ export type PickupItem = {
   item_id: string
 }
 
+export type User = {
+  user_id: string
+  name: string
+  email: string
+  password_hash: string | null
+  role: Role
+  department_id: number | null
+}
+
 const useNeon = !!process.env.DATABASE_URL
 const sql = useNeon ? neon(process.env.DATABASE_URL as string) : null
 
@@ -58,6 +67,7 @@ const mem = {
   items: new Map<string, EwasteItem>(),
   pickups: new Map<string, Pickup>(),
   pickupItems: new Map<string, PickupItem>(),
+  users: new Map<string, User>(),
 }
 
 // Seed some memory data on first import
@@ -81,6 +91,51 @@ if (!useNeon && mem.departments.size === 0) {
   }
   mem.vendors.set(v1.id, v1)
   mem.vendors.set(v2.id, v2)
+
+  // Seed demo users for preview auth
+  const demoUsers: User[] = [
+    {
+      user_id: "55555555-5555-5555-5555-555555555555",
+      name: "Admin User",
+      email: "admin@example.com",
+      password_hash: "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9", // admin123
+      role: "admin",
+      department_id: 1,
+    },
+    {
+      user_id: "66666666-6666-6666-6666-666666666666",
+      name: "Student One",
+      email: "student1@example.com",
+      password_hash: "703b0a3d6ad75b649a28adde7d83c6251da457549263bc7ff45ec709b0a8448b", // student123
+      role: "student",
+      department_id: 1,
+    },
+    {
+      user_id: "77777777-7777-7777-7777-777777777777",
+      name: "Student Two",
+      email: "student2@example.com",
+      password_hash: "703b0a3d6ad75b649a28adde7d83c6251da457549263bc7ff45ec709b0a8448b", // student123
+      role: "student",
+      department_id: 2,
+    },
+    {
+      user_id: "88888888-8888-8888-8888-888888888888",
+      name: "Faculty One",
+      email: "faculty1@example.com",
+      password_hash: "27041f5856c7387a997252694afb048d1aa939228ffcdbd6285b979b8da20e7a", // faculty123
+      role: "coordinator",
+      department_id: 2,
+    },
+    {
+      user_id: "99999999-9999-9999-9999-999999999999",
+      name: "Vendor User",
+      email: "vendor1@example.com",
+      password_hash: "00fc1e6c602824793c9840e781e5e20747507e26ddf0d60fab996567a0327cdf", // vendor123
+      role: "vendor",
+      department_id: null,
+    },
+  ]
+  for (const u of demoUsers) mem.users.set(u.user_id, u)
 
   // Seed a few ewaste items for demo/preview use
   const now = Date.now()
@@ -340,4 +395,15 @@ export async function analyticsRecoveryRate(): Promise<{ rate: number; recycled:
   const total = items.length
   const rate = total ? Math.round(((recycled / total) * 100 + Number.EPSILON) * 100) / 100 : 0
   return { rate, recycled, disposed }
+}
+
+export async function getUserByEmail(email: string): Promise<User | null> {
+  if (useNeon && sql) {
+    const rows = await sql<User>`
+      select user_id, name, email, password_hash, role, department_id
+      from users where email = ${email} limit 1;`
+    return rows[0] || null
+  }
+  const user = Array.from(mem.users.values()).find((u) => u.email.toLowerCase() === email.toLowerCase())
+  return user || null
 }
