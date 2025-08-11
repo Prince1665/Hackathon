@@ -8,3 +8,11 @@ insert into vendors (vendor_id, company_name, contact_person, email, cpcb_regist
   ('00000000-0000-0000-0000-000000000001','GreenCycle Pvt Ltd','Asha','ops@greencycle.example','CPCB-12345'),
   ('00000000-0000-0000-0000-000000000002','EcoWaste Solutions','Ravi','contact@ecowaste.example','CPCB-67890')
 on conflict do nothing;
+
+-- Seed a few ewaste items
+insert into ewaste_items (item_id, name, description, category, status, reported_by_user_id, department_id, reported_date, disposed_date, qr_code_data) values
+  ('11111111-1111-1111-1111-111111111111','Dell Latitude 5400','Old laptop from lab','Laptop','Reported','student1',1, now() - interval '10 days', null, 'http://localhost:3000/item/11111111-1111-1111-1111-111111111111'),
+  ('22222222-2222-2222-2222-222222222222','HP 24-inch Monitor','Cracked screen','Monitor','Awaiting Pickup','coordinator1',2, now() - interval '20 days', null, 'http://localhost:3000/item/22222222-2222-2222-2222-222222222222'),
+  ('33333333-3333-3333-3333-333333333333','Li-ion Battery','Swollen battery from old UPS','Battery','Recycled','coordinator2',2, now() - interval '40 days', now() - interval '5 days', 'http://localhost:3000/item/33333333-3333-3333-3333-333333333333'),
+  ('44444444-4444-4444-4444-444444444444','Mixed Cables','Assorted HDMI/ethernet cables','Other','Safely Disposed','admin1',3, now() - interval '60 days', now() - interval '2 days', 'http://localhost:3000/item/44444444-4444-4444-4444-444444444444')
+on conflict do nothing;

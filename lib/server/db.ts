@@ -81,6 +81,72 @@ if (!useNeon && mem.departments.size === 0) {
   }
   mem.vendors.set(v1.id, v1)
   mem.vendors.set(v2.id, v2)
+
+  // Seed a few ewaste items for demo/preview use
+  const now = Date.now()
+  const daysAgo = (n: number) => new Date(now - n * 24 * 60 * 60 * 1000).toISOString()
+  const localOrigin = "http://localhost:3000"
+
+  const i1: EwasteItem = {
+    id: uuidv4(),
+    name: "Dell Latitude 5400",
+    description: "Old laptop from lab",
+    category: "Laptop",
+    status: "Reported",
+    department_id: 1,
+    reported_by: "student1",
+    reported_date: daysAgo(10),
+    disposed_date: null,
+    disposition: null,
+    qr_code_url: `${localOrigin}/item/${uuidv4()}`,
+  }
+
+  const i2: EwasteItem = {
+    id: uuidv4(),
+    name: "HP 24-inch Monitor",
+    description: "Cracked screen",
+    category: "Monitor",
+    status: "Awaiting Pickup",
+    department_id: 2,
+    reported_by: "coordinator1",
+    reported_date: daysAgo(20),
+    disposed_date: null,
+    disposition: null,
+    qr_code_url: `${localOrigin}/item/${uuidv4()}`,
+  }
+
+  const i3: EwasteItem = {
+    id: uuidv4(),
+    name: "Li-ion Battery",
+    description: "Swollen battery from old UPS",
+    category: "Battery",
+    status: "Recycled",
+    department_id: 2,
+    reported_by: "coordinator2",
+    reported_date: daysAgo(40),
+    disposed_date: daysAgo(5),
+    disposition: "Recyclable",
+    qr_code_url: `${localOrigin}/item/${uuidv4()}`,
+  }
+
+  const i4: EwasteItem = {
+    id: uuidv4(),
+    name: "Mixed Cables",
+    description: "Assorted HDMI/ethernet cables",
+    category: "Other",
+    status: "Safely Disposed",
+    department_id: 3,
+    reported_by: "admin1",
+    reported_date: daysAgo(60),
+    disposed_date: daysAgo(2),
+    disposition: "Hazardous",
+    qr_code_url: `${localOrigin}/item/${uuidv4()}`,
+  }
+
+  mem.items.set(i1.id, i1)
+  mem.items.set(i2.id, i2)
+  mem.items.set(i3.id, i3)
+  mem.items.set(i4.id, i4)
 }
 
 export async function listDepartments(): Promise<Department[]> {
