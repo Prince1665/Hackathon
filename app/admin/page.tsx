@@ -113,28 +113,30 @@ export default function AdminPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="border rounded-md">
-                  <div className="grid grid-cols-[24px_1fr_120px_140px_160px] gap-3 px-3 py-2 text-xs text-muted-foreground">
-                    <div />
-                    <div>Name</div>
-                    <div>Category</div>
-                    <div>Status</div>
-                    <div>Reported</div>
-                  </div>
-                  <Separator />
-                  <div className="max-h-[420px] overflow-auto divide-y">
-                    {filtered.map((i) => (
-                      <div key={i.id} className="grid grid-cols-[24px_1fr_120px_140px_160px] gap-3 items-center px-3 py-3">
-                        <Checkbox checked={!!selected[i.id]} onCheckedChange={(v) => setSelected((s) => ({ ...s, [i.id]: !!v }))} aria-label="Select row" />
-                        <div className="truncate">
-                          <div className="font-medium">{i.name}</div>
-                          <div className="text-xs text-muted-foreground truncate">{i.id}</div>
+                <div className="border rounded-md overflow-x-auto">
+                  <div className="min-w-[680px]">
+                    <div className="grid grid-cols-[24px_1fr_120px_140px_160px] gap-3 px-3 py-2 text-xs text-muted-foreground">
+                      <div />
+                      <div>Name</div>
+                      <div>Category</div>
+                      <div>Status</div>
+                      <div>Reported</div>
+                    </div>
+                    <Separator />
+                    <div className="max-h-[420px] overflow-auto divide-y">
+                      {filtered.map((i) => (
+                        <div key={i.id} className="grid grid-cols-[24px_1fr_120px_140px_160px] gap-3 items-center px-3 py-3">
+                          <Checkbox checked={!!selected[i.id]} onCheckedChange={(v) => setSelected((s) => ({ ...s, [i.id]: !!v }))} aria-label="Select row" />
+                          <div className="truncate">
+                            <div className="font-medium">{i.name}</div>
+                            <div className="text-xs text-muted-foreground truncate">{i.id}</div>
+                          </div>
+                          <div><Badge variant="secondary">{i.category}</Badge></div>
+                          <div><Badge>{i.status}</Badge></div>
+                          <div className="text-xs">{new Date(i.reported_date).toLocaleDateString()}</div>
                         </div>
-                        <div><Badge variant="secondary">{i.category}</Badge></div>
-                        <div><Badge>{i.status}</Badge></div>
-                        <div className="text-xs">{new Date(i.reported_date).toLocaleDateString()}</div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
               </CardContent>

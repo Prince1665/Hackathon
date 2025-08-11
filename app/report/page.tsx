@@ -129,7 +129,7 @@ export default function ReportPage() {
                   </div>
                   {qrDataUrl ? (
                     <>
-                      <img src={qrDataUrl || "/placeholder.svg"} alt="QR code for item" className="border rounded p-2 bg-white" />
+                      <img src={qrDataUrl || "/placeholder.svg"} alt="QR code for item" className="border rounded p-2 bg-white max-w-full h-auto" />
                       <a href={qrDataUrl} download={`ewaste-${created.id}.png`} className="text-sm underline">Download QR</a>
                     </>
                   ) : (

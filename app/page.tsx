@@ -15,7 +15,7 @@ export default function Page() {
               Report, track, and sustainably dispose of e‑waste on campus. QR‑code tagging, vendor pickup scheduling,
               compliance reports, and analytics included.
             </p>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Button asChild>
                 <Link href="/report">Report an item</Link>
               </Button>

@@ -57,6 +57,13 @@ export function AppNav({ className }: { className?: string }) {
             <Link href="/admin">Dashboard</Link>
           </Button>
         </div>
+        <div className="md:hidden px-4 pb-2">
+          <nav className="flex items-center gap-4 text-sm text-muted-foreground overflow-x-auto [-webkit-overflow-scrolling:touch] whitespace-nowrap">
+            <Link href="/report" className="hover:text-foreground">Report</Link>
+            <Link href="/admin" className={cn("hover:text-foreground", role !== "admin" && "opacity-60")}>Admin</Link>
+            <Link href="/vendor/scan" className={cn("hover:text-foreground", role !== "vendor" && "opacity-60")}>Vendor</Link>
+          </nav>
+        </div>
       </div>
     </header>
   )
