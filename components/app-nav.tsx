@@ -82,11 +82,11 @@ export function AppNav({ className }: { className?: string }) {
                 <>
                   {!session.signupDone && (
                     <Button asChild size="sm" variant="secondary">
-                      <Link href="/signup">Sign up</Link>
+                      <Link href="/auth">Sign up</Link>
                     </Button>
                   )}
                   <Button asChild size="sm">
-                    <Link href="/login">Login</Link>
+                    <Link href="/auth">Login</Link>
                   </Button>
                 </>
               )}

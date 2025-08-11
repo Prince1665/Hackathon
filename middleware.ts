@@ -8,21 +8,17 @@ export function middleware(req: NextRequest) {
     pathname === "/" ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
-    pathname === "/favicon.ico"
+    pathname === "/favicon.ico" ||
+    pathname === "/auth"
   ) {
     return NextResponse.next()
   }
 
-  if (pathname === "/login" || pathname.startsWith("/login/") || pathname === "/signup") {
-    return NextResponse.next()
-  }
-
   const sessionCookie = req.cookies.get("session")?.value
-  const signupCookie = req.cookies.get("signup_done")?.value
 
   if (!sessionCookie) {
     const url = req.nextUrl.clone()
-    url.pathname = signupCookie ? "/login" : "/signup"
+    url.pathname = "/auth"
     url.searchParams.set("from", pathname)
     return NextResponse.redirect(url)
   }
@@ -34,7 +30,7 @@ export function middleware(req: NextRequest) {
         return NextResponse.next()
       }
       const url = req.nextUrl.clone()
-      url.pathname = "/login/admin"
+      url.pathname = "/auth"
       return NextResponse.redirect(url)
     }
     if (pathname.startsWith("/vendor")) {
@@ -42,12 +38,12 @@ export function middleware(req: NextRequest) {
         return NextResponse.next()
       }
       const url = req.nextUrl.clone()
-      url.pathname = "/login/vendor"
+      url.pathname = "/auth"
       return NextResponse.redirect(url)
     }
   } catch {
     const url = req.nextUrl.clone()
-    url.pathname = "/login"
+    url.pathname = "/auth"
     return NextResponse.redirect(url)
   }
 
@@ -55,5 +51,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|login|signup).*)", "/admin/:path*", "/vendor/:path*"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|auth).*)", "/admin/:path*", "/vendor/:path*"],
 }
