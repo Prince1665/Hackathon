@@ -37,7 +37,7 @@ export default function FacultyLoginPage() {
   }
 
   return (
-    <main className="container max-w-md py-10">
+    <main className="min-h-screen grid place-items-center p-4">
       <Card>
         <CardHeader>
           <CardTitle>Faculty / Coordinator Login</CardTitle>

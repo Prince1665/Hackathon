@@ -54,7 +54,7 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="container max-w-md py-10">
+    <main className="min-h-screen grid place-items-center p-4">
       <Card>
         <CardHeader>
           <CardTitle>Create your account</CardTitle>

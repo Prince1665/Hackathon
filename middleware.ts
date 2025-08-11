@@ -5,6 +5,7 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   if (
+    pathname === "/" ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
     pathname === "/favicon.ico"

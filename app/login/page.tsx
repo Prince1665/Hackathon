@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 
 export default function LoginLandingPage() {
   return (
-    <main className="container max-w-2xl py-10">
+    <main className="min-h-screen grid place-items-center p-4">
       <Card>
         <CardHeader>
           <CardTitle>Login</CardTitle>
