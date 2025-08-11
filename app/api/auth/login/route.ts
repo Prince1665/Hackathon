@@ -10,5 +10,12 @@ export async function POST(req: Request) {
   if (!session) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
   }
-  return NextResponse.json({ user: session.user })
+  const res = NextResponse.json({ user: session.user })
+  res.cookies.set("session", JSON.stringify(session), {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  })
+  return res
 }

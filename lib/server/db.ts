@@ -48,6 +48,14 @@ export type PickupItem = {
   item_id: string
 }
 
+export type Campaign = {
+  id: string
+  title: string
+  date: string
+  description?: string
+}
+
+
 export type User = {
   user_id: string
   name: string
@@ -68,6 +76,7 @@ const mem = {
   pickups: new Map<string, Pickup>(),
   pickupItems: new Map<string, PickupItem>(),
   users: new Map<string, User>(),
+  campaigns: new Map<string, Campaign>(),
 }
 
 // Seed some memory data on first import
@@ -355,6 +364,7 @@ export async function schedulePickup(input: {
       `
       await updateItem(itemId, { status: "Scheduled" })
     }
+
     return pickup
   }
   mem.pickups.set(pickupId, pickup)
@@ -365,6 +375,26 @@ export async function schedulePickup(input: {
   }
   return pickup
 }
+
+export async function listCampaigns(): Promise<Campaign[]> {
+  if (useNeon && sql) {
+    const rows = await sql<Campaign>`select campaign_id as id, title, date, description from campaigns order by date desc;`
+    return rows
+  }
+  return Array.from(mem.campaigns.values()).sort((a, b) => (a.date < b.date ? 1 : -1))
+}
+
+export async function createCampaign(input: { title: string; date: string; description?: string }): Promise<Campaign> {
+  const id = uuidv4()
+  const c: Campaign = { id, title: input.title, date: input.date, description: input.description }
+  if (useNeon && sql) {
+    await sql`insert into campaigns (campaign_id, title, date, description) values (${c.id}, ${c.title}, ${c.date}, ${c.description || null});`
+    return c
+  }
+  mem.campaigns.set(id, c)
+  return c
+}
+
 
 // Analytics (very simple demo aggregations)
 export async function analyticsVolumeTrends(): Promise<{ month: string; count: number }[]> {

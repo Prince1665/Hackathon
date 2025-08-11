@@ -3,10 +3,13 @@ import type { NextRequest } from "next/server"
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
-  if (pathname.startsWith("/admin") || pathname.startsWith("/vendor")) {
+  if (pathname.startsWith("/admin") || pathname.startsWith("/vendor") || pathname.startsWith("/report") || pathname.startsWith("/item")) {
     const cookie = req.cookies.get("session")?.value
     if (!cookie) {
-      const loginPath = pathname.startsWith("/vendor") ? "/login/vendor" : "/login/admin"
+      let loginPath = "/login"
+      if (pathname.startsWith("/vendor")) loginPath = "/login/vendor"
+      else if (pathname.startsWith("/admin") || pathname.startsWith("/item")) loginPath = "/login/admin"
+      else if (pathname.startsWith("/report")) loginPath = "/login/student"
       const url = req.nextUrl.clone()
       url.pathname = loginPath
       url.searchParams.set("from", pathname)
@@ -14,12 +17,19 @@ export function middleware(req: NextRequest) {
     }
     try {
       const session = JSON.parse(cookie) as { user?: { role?: string } }
-      if (pathname.startsWith("/admin") && session.user?.role && ["admin", "coordinator"].includes(session.user.role)) {
+      if (pathname.startsWith("/admin") && session.user?.role === "admin") {
         return NextResponse.next()
       }
-      if (pathname.startsWith("/vendor") && session.user?.role === "vendor") {
+      if (pathname.startsWith("/vendor") && (session.user?.role === "vendor" || session.user?.role === "admin")) {
         return NextResponse.next()
       }
+      if (pathname.startsWith("/report") && (session.user?.role === "admin" || session.user?.role === "student" || session.user?.role === "coordinator")) {
+        return NextResponse.next()
+      }
+      if (pathname.startsWith("/item") && session.user?.role === "admin") {
+        return NextResponse.next()
+      }
+
       // Not authorized
       const url = req.nextUrl.clone()
       url.pathname = "/login"
@@ -34,5 +44,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/vendor/:path*"],
+  matcher: ["/admin/:path*", "/vendor/:path*", "/report", "/item/:path*"],
 }

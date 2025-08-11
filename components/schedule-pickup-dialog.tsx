@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
+import { useEffect } from "react"
 
 type Item = { id: string; name: string }
 type Vendor = { id: string; company_name: string }
@@ -24,6 +25,15 @@ export function SchedulePickupDialog({
   const [open, setOpen] = useState(false)
   const [vendorId, setVendorId] = useState<string>("")
   const [date, setDate] = useState<string>("")
+  const [adminId, setAdminId] = useState<string>("")
+
+  useEffect(() => {
+    fetch("/api/auth/session").then(async (r) => {
+      const s = await r.json()
+      setAdminId(s?.user?.user_id || "")
+    })
+  }, [])
+
   const [submitting, setSubmitting] = useState(false)
 
   async function submit() {
@@ -34,7 +44,7 @@ export function SchedulePickupDialog({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         vendor_id: vendorId,
-        admin_id: "admin-1",
+        admin_id: adminId || "unknown-admin",
         scheduled_date: date,
         item_ids: selectedIds,
       }),

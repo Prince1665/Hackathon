@@ -4,8 +4,8 @@ import { GeistMono } from 'geist/font/mono'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'SMART E WASTE MANAGEMENT SYSTEM',
+  description: 'A centralized portal to log, track, and sustainably manage e‑waste across campuses and residential complexes with QR tagging, scheduling, compliance, engagement, and analytics.',
   generator: 'v0.dev',
 }
 
