@@ -8,8 +8,11 @@ import { cn } from "@/lib/utils"
 
 type Role = "student" | "coordinator" | "admin" | "vendor"
 
+type SessionState = { user: null | { role: Role }; signupDone: boolean; loading: boolean }
+
 export function AppNav({ className }: { className?: string }) {
   const [role, setRole] = useState<Role>("student")
+  const [session, setSession] = useState<SessionState>({ user: null, signupDone: false, loading: true })
 
   useEffect(() => {
     const saved = typeof window !== "undefined" ? (localStorage.getItem("role") as Role | null) : null
@@ -21,6 +24,15 @@ export function AppNav({ className }: { className?: string }) {
       localStorage.setItem("role", role)
     }
   }, [role])
+
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/auth/session").then(async (r) => {
+      const data = await r.json()
+      if (!cancelled) setSession({ user: data.user, signupDone: !!data.signupDone, loading: false })
+    }).catch(() => setSession((s) => ({ ...s, loading: false })))
+    return () => { cancelled = true }
+  }, [])
 
   async function onLogout() {
     await fetch("/api/auth/logout", { method: "POST" })
@@ -58,15 +70,28 @@ export function AppNav({ className }: { className?: string }) {
               <SelectItem value="vendor">E‑Waste Vendor</SelectItem>
             </SelectContent>
           </Select>
-          <Button asChild variant="outline" size="sm" className="hidden md:inline-flex">
-            <Link href="/admin">Dashboard</Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link href="/login">Login</Link>
-          </Button>
-          <Button size="sm" variant="ghost" onClick={onLogout}>
-            Logout
-          </Button>
+          {!session.loading && (
+            <>
+              {session.user ? (
+                // Logged in: show only Logout
+                <Button size="sm" variant="ghost" onClick={onLogout}>
+                  Logout
+                </Button>
+              ) : (
+                // Logged out
+                <>
+                  {!session.signupDone && (
+                    <Button asChild size="sm" variant="secondary">
+                      <Link href="/signup">Sign up</Link>
+                    </Button>
+                  )}
+                  <Button asChild size="sm">
+                    <Link href="/login">Login</Link>
+                  </Button>
+                </>
+              )}
+            </>
+          )}
         </div>
       </div>
     </header>

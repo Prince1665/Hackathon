@@ -28,7 +28,7 @@ export default function VendorLoginPage() {
         const data = await res.json().catch(() => ({}))
         throw new Error(data.error || "Login failed")
       }
-      router.push("/vendor/scan")
+      router.push("/")
     } catch (err: any) {
       setError(err.message || "Something went wrong")
     } finally {
