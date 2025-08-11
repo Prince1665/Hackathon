@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SchedulePickupDialog } from "@/components/schedule-pickup-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
+import { SignupDialog } from "@/components/signup-dialog"
 
 type Item = {
   id: string
@@ -36,6 +37,7 @@ export default function Page() {
   const [volumeTrends, setVolumeTrends] = useState<{ month: string; count: number }[]>([])
   const [catDist, setCatDist] = useState<{ category: string; count: number }[]>([])
   const [recovery, setRecovery] = useState<{ rate: number; recycled: number; disposed: number } | null>(null)
+  const [openSignup, setOpenSignup] = useState(false)
 
   async function load() {
     const qs = new URLSearchParams()
@@ -73,6 +75,9 @@ export default function Page() {
     <main>
       <AppNav />
       <section className="container py-8 space-y-8">
+        <div className="flex items-center justify-end">
+          <Button onClick={() => setOpenSignup(true)}>Sign up user</Button>
+        </div>
         <Tabs defaultValue="items">
           <TabsList>
             <TabsTrigger value="items">Items</TabsTrigger>
@@ -240,6 +245,7 @@ export default function Page() {
           </TabsContent>
         </Tabs>
       </section>
+      <SignupDialog open={openSignup} onOpenChange={setOpenSignup} />
     </main>
   )
 }
