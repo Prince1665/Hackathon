@@ -22,6 +22,11 @@ export function AppNav({ className }: { className?: string }) {
     }
   }, [role])
 
+  async function onLogout() {
+    await fetch("/api/auth/logout", { method: "POST" })
+    if (typeof window !== "undefined") window.location.href = "/"
+  }
+
   return (
     <header className={cn("w-full border-b bg-background", className)}>
       <div className="container flex h-14 items-center justify-between gap-4">
@@ -55,6 +60,12 @@ export function AppNav({ className }: { className?: string }) {
           </Select>
           <Button asChild variant="outline" size="sm" className="hidden md:inline-flex">
             <Link href="/admin">Dashboard</Link>
+          </Button>
+          <Button asChild size="sm">
+            <Link href="/login">Login</Link>
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onLogout}>
+            Logout
           </Button>
         </div>
       </div>

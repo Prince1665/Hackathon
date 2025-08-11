@@ -26,7 +26,7 @@ type Item = {
 
 type Vendor = { id: string; company_name: string }
 
-export default function AdminPage() {
+export default function Page() {
   const [items, setItems] = useState<Item[]>([])
   const [q, setQ] = useState("")
   const [status, setStatus] = useState<string>("")
