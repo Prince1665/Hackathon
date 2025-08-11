@@ -407,3 +407,29 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   const user = Array.from(mem.users.values()).find((u) => u.email.toLowerCase() === email.toLowerCase())
   return user || null
 }
+
+export async function createUser(input: {
+  name: string
+  email: string
+  password_hash: string
+  role: Role
+  department_id?: number | null
+}): Promise<User> {
+  const user: User = {
+    user_id: uuidv4(),
+    name: input.name,
+    email: input.email,
+    password_hash: input.password_hash,
+    role: input.role,
+    department_id: input.department_id ?? null,
+  }
+  if (useNeon && sql) {
+    await sql`
+      insert into users (user_id, name, email, password_hash, role, department_id)
+      values (${user.user_id}, ${user.name}, ${user.email}, ${user.password_hash}, ${user.role}, ${user.department_id})
+    `
+    return user
+  }
+  mem.users.set(user.user_id, user)
+  return user
+}

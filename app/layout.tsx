@@ -25,7 +25,7 @@ html {
 }
         `}</style>
       </head>
-      <body>{children}</body>
+      <body className="min-h-screen flex items-center justify-center">{children}</body>
     </html>
   )
 }

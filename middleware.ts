@@ -4,7 +4,6 @@ import type { NextRequest } from "next/server"
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Allow static assets and API
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
@@ -13,22 +12,22 @@ export function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // Allow login routes without session
-  if (pathname === "/login" || pathname.startsWith("/login/")) {
+  if (pathname === "/login" || pathname.startsWith("/login/") || pathname === "/signup") {
     return NextResponse.next()
   }
 
-  const cookie = req.cookies.get("session")?.value
-  if (!cookie) {
+  const sessionCookie = req.cookies.get("session")?.value
+  const signupCookie = req.cookies.get("signup_done")?.value
+
+  if (!sessionCookie) {
     const url = req.nextUrl.clone()
-    url.pathname = "/login"
+    url.pathname = signupCookie ? "/login" : "/signup"
     url.searchParams.set("from", pathname)
     return NextResponse.redirect(url)
   }
 
-  // If session exists, optionally enforce role-based restrictions
   try {
-    const session = JSON.parse(cookie) as { user?: { role?: string } }
+    const session = JSON.parse(sessionCookie) as { user?: { role?: string } }
     if (pathname.startsWith("/admin")) {
       if (session.user?.role && ["admin", "coordinator"].includes(session.user.role)) {
         return NextResponse.next()
@@ -55,5 +54,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|login).*)", "/admin/:path*", "/vendor/:path*"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|login|signup).*)", "/admin/:path*", "/vendor/:path*"],
 }
