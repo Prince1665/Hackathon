@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server"
-import { cookies } from "next/headers"
 import { createUser, getUserByEmail, type Role } from "@/lib/server/db"
 import { sha256 } from "@/lib/server/auth"
 
@@ -30,7 +29,7 @@ export async function POST(req: Request) {
     role,
     department_id: role === "vendor" ? null : department_id ?? null,
   })
-  const cookieStore = await cookies()
-  cookieStore.set("signup_done", "1", { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" })
-  return NextResponse.json({ user })
+  const res = NextResponse.json({ user })
+  res.cookies.set("signup_done", "1", { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" })
+  return res
 }
