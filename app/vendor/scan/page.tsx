@@ -22,6 +22,7 @@ export default function VendorScanPage() {
   const [item, setItem] = useState<Item | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const codeReaderRef = useRef<BrowserQRCodeReader | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
 
   useEffect(() => {
     codeReaderRef.current = new BrowserQRCodeReader()
@@ -33,10 +34,9 @@ export default function VendorScanPage() {
 
   function stopCamera() {
     const v = videoRef.current
-    const stream = v?.srcObject as MediaStream | null
-    if (stream) {
-      stream.getTracks().forEach((t) => t.stop())
-    }
+    const stream = (v?.srcObject as MediaStream | null) || streamRef.current
+    if (stream) stream.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
     if (v) v.srcObject = null
   }
 
@@ -45,9 +45,33 @@ export default function VendorScanPage() {
     setResult("")
     setCameraReady(true)
     try {
+      // Request permission first so device labels are populated
+      try {
+        const tmp = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } })
+        // attach briefly so iOS shows preview immediately (optional)
+        if (videoRef.current) {
+          videoRef.current.srcObject = tmp
+          await videoRef.current.play().catch(() => {})
+        }
+        // Keep a reference so we can stop it when ZXing takes over
+        streamRef.current = tmp
+      } catch (e) {
+        // Continue; ZXing may still prompt. If it fails, we'll show an alert below.
+      }
+
       const devices = await BrowserQRCodeReader.listVideoInputDevices()
-      const deviceId = devices?.[0]?.deviceId
+      const pick = (list: MediaDeviceInfo[]) => {
+        const byLabel = list.find((d) => /back|rear|environment/i.test(d.label))
+        return byLabel?.deviceId || list[0]?.deviceId || null
+      }
+      const deviceId = pick(devices)
       if (!deviceId) throw new Error("No camera found")
+
+      // Hand over to ZXing; it will manage the stream. Stop our temp stream if any.
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop())
+        streamRef.current = null
+      }
 
       const res = await codeReaderRef.current!.decodeOnceFromVideoDevice(deviceId, videoRef.current!)
       const text = typeof (res as any).getText === "function" ? (res as any).getText() : (res as any).text
@@ -55,7 +79,7 @@ export default function VendorScanPage() {
       await handleDecoded(text)
     } catch (e: any) {
       if (e?.name !== "NotFoundException") {
-        alert(e?.message || "Failed to access camera")
+        alert(e?.message || "Failed to access camera. Ensure you are on HTTPS or localhost and have granted permission.")
       }
     } finally {
       setCameraReady(false)
@@ -117,8 +141,11 @@ export default function VendorScanPage() {
               <div className="relative rounded border overflow-hidden bg-black/80 aspect-video">
                 <video ref={videoRef} className="w-full h-full object-cover" muted autoPlay playsInline />
                 {!cameraReady ? (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Button onClick={startScan}>Start Camera</Button>
+                  <div className="absolute inset-0 flex items-center justify-center p-4 text-center">
+                    <div className="grid gap-2">
+                      <Button onClick={startScan}>Start Camera</Button>
+                      <div className="text-[11px] text-muted-foreground">If camera fails, check browser permissions and that you are on HTTPS or localhost.</div>
+                    </div>
                   </div>
                 ) : null}
               </div>
