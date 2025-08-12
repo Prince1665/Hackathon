@@ -1,3 +1,5 @@
+export const runtime = "nodejs"
+
 import { NextRequest, NextResponse } from "next/server"
 import { createItem, listItems, type ItemCategory, type ItemStatus } from "@/lib/server/data-mongo"
 

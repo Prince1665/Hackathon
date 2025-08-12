@@ -1,3 +1,5 @@
+export const runtime = "nodejs"
+
 import { NextResponse } from "next/server"
 import { analyticsVolumeTrends } from "@/lib/server/data-mongo"
 
