@@ -26,19 +26,12 @@ export async function signInWithPassword(email: string, password: string): Promi
       department_id: user.department_id,
     },
   }
-  const cookieStore = await cookies()
-  cookieStore.set(SESSION_COOKIE, JSON.stringify(session), {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30, // 30 days
-  })
   return session
 }
 
 export async function signOut(): Promise<void> {
   const cookieStore = await cookies()
-  cookieStore.set(SESSION_COOKIE, "", { path: "/", maxAge: 0 })
+  cookieStore.set(SESSION_COOKIE, "", { path: "/", maxAge: 0, secure: process.env.NODE_ENV === "production" })
 }
 
 export async function getSession(): Promise<Session | null> {

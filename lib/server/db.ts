@@ -79,8 +79,8 @@ const mem = {
   campaigns: new Map<string, Campaign>(),
 }
 
-// Seed some memory data on first import
-if (!useNeon && mem.departments.size === 0) {
+// Seed some memory data on first import (always seed memory so we can fallback if DB is unavailable)
+if (mem.departments.size === 0) {
   mem.departments.set(1, { id: 1, name: "Computer Science", location: "Block A" })
   mem.departments.set(2, { id: 2, name: "Electrical", location: "Block B" })
   mem.departments.set(3, { id: 3, name: "Mechanical", location: "Block C" })
@@ -429,10 +429,16 @@ export async function analyticsRecoveryRate(): Promise<{ rate: number; recycled:
 
 export async function getUserByEmail(email: string): Promise<User | null> {
   if (useNeon && sql) {
-    const rows = await sql<User>`
-      select user_id, name, email, password_hash, role, department_id
-      from users where email = ${email} limit 1;`
-    return rows[0] || null
+    try {
+      const rowsPromise = sql<User>`
+        select user_id, name, email, password_hash, role, department_id
+        from users where email = ${email} limit 1;`
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
+      const rowsOrNull = (await Promise.race([rowsPromise, timeoutPromise])) as User[] | null
+      if (rowsOrNull && rowsOrNull[0]) return rowsOrNull[0]
+    } catch {
+      // swallow and fallback to memory below
+    }
   }
   const user = Array.from(mem.users.values()).find((u) => u.email.toLowerCase() === email.toLowerCase())
   return user || null
