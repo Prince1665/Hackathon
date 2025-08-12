@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createItem, listItems, type ItemCategory, type ItemStatus } from "@/lib/server/db"
+import { createItem, listItems } from "@/lib/server/db"
+
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const status = searchParams.get("status") as ItemStatus | null
-  const category = searchParams.get("category") as ItemCategory | null
-  const department_id = searchParams.get("department_id")
-  const rows = await listItems({
-    status: status || undefined,
-    category: category || undefined,
+  const status = searchParams.get("status") || undefined
+  const department_id = searchParams.get("department_id") || undefined
+  const category = searchParams.get("category") || undefined
+  const items = await listItems({
+    status: status as any,
     department_id: department_id ? Number(department_id) : undefined,
+    category: category as any,
   })
-  return NextResponse.json(rows)
+  return NextResponse.json(items, { headers: { "Cache-Control": "no-store" } })
 }
 
 export async function POST(req: NextRequest) {
@@ -27,5 +30,5 @@ export async function POST(req: NextRequest) {
     reported_by: body.reported_by,
     origin,
   })
-  return NextResponse.json(item)
+  return NextResponse.json(item, { headers: { "Cache-Control": "no-store" } })
 }

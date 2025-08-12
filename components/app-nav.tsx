@@ -20,7 +20,7 @@ export function AppNav({ className }: { className?: string }) {
   const [showBlocked, setShowBlocked] = useState(false)
 
   useEffect(() => {
-    fetch("/api/auth/session").then(async (r) => {
+    fetch("/api/auth/session", { credentials: "include", cache: "no-store" }).then(async (r) => {
       const s = await r.json()
       setRole(s?.user?.role ?? null)
     })
@@ -41,7 +41,7 @@ export function AppNav({ className }: { className?: string }) {
   }
 
   async function onLogout() {
-    await fetch("/api/auth/logout", { method: "POST" })
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
     if (typeof window !== "undefined") window.location.href = "/"
   }
 

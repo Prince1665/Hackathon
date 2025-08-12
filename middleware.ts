@@ -16,18 +16,26 @@ export function middleware(req: NextRequest) {
       return NextResponse.redirect(url)
     }
     try {
-      const session = JSON.parse(cookie) as { user?: { role?: string } }
+      const session = typeof cookie === "string" && cookie.trim().startsWith("{") ? JSON.parse(cookie) as { user?: { role?: string } } : { user: null }
       if (pathname.startsWith("/admin") && session.user?.role === "admin") {
-        return NextResponse.next()
+        const res = NextResponse.next()
+        res.headers.set("Cache-Control", "no-store")
+        return res
       }
       if (pathname.startsWith("/vendor") && (session.user?.role === "vendor" || session.user?.role === "admin")) {
-        return NextResponse.next()
+        const res = NextResponse.next()
+        res.headers.set("Cache-Control", "no-store")
+        return res
       }
       if (pathname.startsWith("/report") && (session.user?.role === "admin" || session.user?.role === "student" || session.user?.role === "coordinator")) {
-        return NextResponse.next()
+        const res = NextResponse.next()
+        res.headers.set("Cache-Control", "no-store")
+        return res
       }
       if (pathname.startsWith("/item") && session.user?.role === "admin") {
-        return NextResponse.next()
+        const res = NextResponse.next()
+        res.headers.set("Cache-Control", "no-store")
+        return res
       }
 
       // Not authorized
