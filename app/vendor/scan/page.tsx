@@ -22,6 +22,7 @@ export default function VendorScanPage() {
   const [item, setItem] = useState<Item | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const codeReaderRef = useRef<BrowserQRCodeReader | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
 
   useEffect(() => {
     codeReaderRef.current = new BrowserQRCodeReader()
@@ -33,11 +34,12 @@ export default function VendorScanPage() {
 
   function stopCamera() {
     const v = videoRef.current
-    const stream = v?.srcObject as MediaStream | null
-    if (stream) {
-      stream.getTracks().forEach((t) => t.stop())
+    const s = streamRef.current || ((v?.srcObject as MediaStream | null) ?? null)
+    if (s) {
+      s.getTracks().forEach((t) => t.stop())
     }
     if (v) v.srcObject = null
+    streamRef.current = null
   }
 
   async function startScan() {
@@ -45,16 +47,26 @@ export default function VendorScanPage() {
     setResult("")
     setCameraReady(true)
     try {
+      // Ask for camera permission up front
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+      streamRef.current = stream
+      const v = videoRef.current
+      if (v) v.srcObject = stream
+
+      // pick the first available camera device
       const devices = await BrowserQRCodeReader.listVideoInputDevices()
       const deviceId = devices?.[0]?.deviceId
-      if (!deviceId) throw new Error("No camera found")
+      const reader = codeReaderRef.current!
 
-      const res = await codeReaderRef.current!.decodeOnceFromVideoDevice(deviceId, videoRef.current!)
+      // Start a continuous decode until we get a code, then stop
+      const res = await reader.decodeOnceFromVideoDevice(deviceId || undefined, videoRef.current!)
       const text = typeof (res as any).getText === "function" ? (res as any).getText() : (res as any).text
       setResult(text)
       await handleDecoded(text)
     } catch (e: any) {
-      if (e?.name !== "NotFoundException") {
+      if (e?.name === "NotAllowedError") {
+        alert("Camera permission denied. Please allow camera access to scan QR codes.")
+      } else if (e?.name !== "NotFoundException") {
         alert(e?.message || "Failed to access camera")
       }
     } finally {
@@ -117,8 +129,9 @@ export default function VendorScanPage() {
               <div className="relative rounded border overflow-hidden bg-black/80 aspect-video">
                 <video ref={videoRef} className="w-full h-full object-cover" muted autoPlay playsInline />
                 {!cameraReady ? (
-                  <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="absolute inset-0 flex items-center justify-center gap-3">
                     <Button onClick={startScan}>Start Camera</Button>
+                    <Button variant="outline" onClick={stopCamera}>Stop</Button>
                   </div>
                 ) : null}
               </div>

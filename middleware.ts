@@ -16,6 +16,7 @@ export function middleware(req: NextRequest) {
       return NextResponse.redirect(url)
     }
     try {
+      // Accept legacy JSON cookie or minimal {role} shape
       const session = JSON.parse(cookie) as { user?: { role?: string } }
       if (pathname.startsWith("/admin") && session.user?.role === "admin") {
         return NextResponse.next()

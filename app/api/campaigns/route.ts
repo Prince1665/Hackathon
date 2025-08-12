@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createCampaign, listCampaigns } from "@/lib/server/db"
+import { createCampaign, listCampaigns } from "@/lib/server/data-mongo"
 
 export async function GET() {
   const rows = await listCampaigns()

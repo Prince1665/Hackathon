@@ -8,35 +8,12 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 
 export default function VendorLoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState("vendor1@example.com")
   const [password, setPassword] = useState("vendor123")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-        credentials: "include",
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || "Login failed")
-      }
-      const next = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("from")
-      router.replace(next || "/vendor/scan")
-    } catch (err: any) {
-      setError(err.message || "Something went wrong")
-    } finally {
-      setLoading(false)
-    }
-  }
+  const from = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("from") || "" : ""
 
   return (
     <main className="min-h-[100svh] grid place-items-center p-4">
@@ -47,14 +24,15 @@ export default function VendorLoginPage() {
             <CardDescription>Use your vendor credentials</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={onSubmit} className="grid gap-4">
+            <form action="/api/auth/login" method="post" className="grid gap-4">
+              <input type="hidden" name="from" value={from} />
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <Input id="email" name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <Input id="password" name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
               {error && <p className="text-sm text-red-600">{error}</p>}
               <Button type="submit" disabled={loading}>

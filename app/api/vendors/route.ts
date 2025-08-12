@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { listVendors } from "@/lib/server/db"
+import { listVendors } from "@/lib/server/data-mongo"
 
 export async function GET() {
   const rows = await listVendors()

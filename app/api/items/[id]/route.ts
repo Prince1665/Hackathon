@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getItem, updateItem } from "@/lib/server/db"
+import { getItem, updateItem } from "@/lib/server/data-mongo"
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
   const item = await getItem(params.id)

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { listItems, type ItemCategory, type ItemStatus } from "@/lib/server/db"
+import { listItems, type ItemCategory, type ItemStatus } from "@/lib/server/data-mongo"
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)

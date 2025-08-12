@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { schedulePickup } from "@/lib/server/db"
+import { schedulePickup } from "@/lib/server/data-mongo"
 
 export async function POST(req: NextRequest) {
   const body = await req.json()

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { analyticsVolumeTrends } from "@/lib/server/db"
+import { analyticsVolumeTrends } from "@/lib/server/data-mongo"
 
 export async function GET() {
   const data = await analyticsVolumeTrends()
