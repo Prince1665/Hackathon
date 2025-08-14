@@ -119,5 +119,18 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Prevent layout shift when content height toggles (e.g., dropdowns) */
+    scrollbar-gutter: stable both-edges;
+  }
+
+  /* Table stability and responsiveness */
+  table[data-slot="table"] {
+    table-layout: fixed;
+  }
+  table[data-slot="table"] th,
+  table[data-slot="table"] td {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
   }
 }
