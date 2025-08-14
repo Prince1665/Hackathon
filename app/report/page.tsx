@@ -29,12 +29,19 @@ export default function ReportPage() {
     category: "Laptop",
     department_id: "",
     reported_by: "",
+    disposition: "",
   })
   const [created, setCreated] = useState<Item | null>(null)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
 
   useEffect(() => {
     fetch("/api/departments").then(async (r) => setDepartments(await r.json()))
+    // Autofill reporter email if logged in
+    fetch("/api/auth/session").then(async (r) => {
+      const s = await r.json().catch(() => null)
+      const email = s?.user?.email || ""
+      if (email) setForm((f) => (f.reported_by ? f : { ...f, reported_by: email }))
+    }).catch(() => {})
   }, [])
 
   const canSubmit = useMemo(() => {
@@ -52,6 +59,7 @@ export default function ReportPage() {
         category: form.category,
         department_id: Number(form.department_id),
         reported_by: form.reported_by,
+        disposition: form.disposition || undefined,
       }),
     })
     if (!res.ok) {
@@ -93,6 +101,17 @@ export default function ReportPage() {
                       <SelectItem value="Monitor">Monitor</SelectItem>
                       <SelectItem value="Battery">Battery</SelectItem>
                       <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Disposition</Label>
+                  <Select value={form.disposition} onValueChange={(v) => setForm((f) => ({ ...f, disposition: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select disposition (optional)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Recyclable">Recyclable</SelectItem>
+                      <SelectItem value="Reusable">Reusable</SelectItem>
+                      <SelectItem value="Hazardous">Hazardous</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

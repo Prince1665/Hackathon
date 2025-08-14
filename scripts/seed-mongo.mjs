@@ -41,16 +41,76 @@ async function main() {
     console.log("Connecting to MongoDB ...")
     await client.connect()
     const db = client.db(dbName)
-    console.log(`Connected. DB=\"${dbName}\"`)
+    console.log(`Connected. DB="${dbName}"`)
 
     // Ensure unique index on email
     try {
       await db.collection("users").createIndex({ email: 1 }, { unique: true })
     } catch {}
 
+    // Seed Departments (idempotent by name)
+    try {
+      const deptNames = [
+        "CSE",
+        "CSE(AI&ML)",
+        "IT",
+        "IOT",
+        "MECH",
+        "CIVIL",
+        "AEIE",
+        "CSE(DS)",
+      ]
+      const deptCol = db.collection("departments")
+      const existing = await deptCol.find({}).project({ _id: 1, name: 1 }).toArray()
+      const existingNames = new Set(existing.map((d) => String(d.name || "").toLowerCase()))
+      let nextId = existing.reduce((max, d) => (typeof d._id === "number" && d._id > max ? d._id : max), 0)
+      let createdDepts = 0
+      let skippedDepts = 0
+      for (const name of deptNames) {
+        if (existingNames.has(name.toLowerCase())) {
+          skippedDepts++
+          continue
+        }
+        nextId += 1
+        await deptCol.insertOne({ _id: nextId, name, location: "" })
+        createdDepts++
+      }
+      console.log(`Departments: created=${createdDepts}, skipped=${skippedDepts}`)
+    } catch (e) {
+      console.warn("Department seed step failed:", e)
+    }
+
+    // Vendors array
+    const vendors = [
+      { id: 1, name: "Vendor One", email: "vendor1@example.com", password: "vendor123", role: "vendor", department_id: 0, company_name: "EcoTech Solutions", contact_person: "John Doe", cpcb_registration_no: "CPCB-12345" },
+      { id: 2, name: "Vendor Two", email: "vendor2@example.com", password: "vendor456", role: "vendor", department_id: 0, company_name: "GreenCycle Ltd.", contact_person: "Jane Smith", cpcb_registration_no: "CPCB-67890" },
+      // Add more vendors as needed
+    ]
+
+    // Seed vendors collection
+    let vendorsCreated = 0
+    let vendorsSkipped = 0
+    for (const v of vendors) {
+      const exists = await db.collection("vendors").findOne({ email: v.email })
+      if (exists) {
+        vendorsSkipped++
+        continue
+      }
+      await db.collection("vendors").insertOne({
+        _id: `vendor-${v.id}`,
+        company_name: v.company_name,
+        contact_person: v.contact_person,
+        email: v.email,
+        cpcb_registration_no: v.cpcb_registration_no,
+      })
+      vendorsCreated++
+    }
+    console.log(`Vendors collection: created=${vendorsCreated}, skipped=${vendorsSkipped}`)
+
+    // Users array (add vendors here)
     const users = [
       { name: "Admin User", email: "admin@example.com", password: "admin123", role: "admin", department_id: 0 },
-      { name: "Vendor One", email: "vendor1@example.com", password: "vendor123", role: "vendor", department_id: 0 },
+      ...vendors,
       { name: "Student One", email: "student1@example.com", password: "student123", role: "student", department_id: 0 },
       { name: "Faculty One", email: "faculty1@example.com", password: "faculty123", role: "coordinator", department_id: 0 },
     ]
@@ -66,13 +126,18 @@ async function main() {
         continue
       }
       const passwordHash = await bcrypt.hash(u.password, 12)
-      await db.collection("users").insertOne({
+      const userDoc = {
         name: u.name,
         email: u.email,
         passwordHash,
         role: u.role,
         department_id: u.department_id,
-      })
+      }
+      if (u.role === "vendor" && u.company_name) {
+        userDoc.company_name = u.company_name
+        userDoc.vendor_id = `vendor-${u.id}`
+      }
+      await db.collection("users").insertOne(userDoc)
       console.log(`Created: ${u.email}`)
       created++
     }

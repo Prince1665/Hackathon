@@ -22,15 +22,17 @@ type Item = {
   department_id: number
   reported_by: string
   reported_date: string
+  disposition?: "Recyclable" | "Reusable" | "Hazardous" | null
 }
 
-type Vendor = { id: string; company_name: string }
+type Vendor = { id: string; company_name: string; contact_person: string; email: string; cpcb_registration_no: string }
 
 export default function Page() {
   const [items, setItems] = useState<Item[]>([])
   const [q, setQ] = useState("")
   const [status, setStatus] = useState<string>("")
   const [category, setCategory] = useState<string>("")
+  const [disp, setDisp] = useState<string>("")
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [volumeTrends, setVolumeTrends] = useState<{ month: string; count: number }[]>([])
@@ -41,6 +43,7 @@ export default function Page() {
     const qs = new URLSearchParams()
     if (status) qs.set("status", status)
     if (category) qs.set("category", category)
+    if (disp) qs.set("disposition", disp as any)
     const res = await fetch(`/api/items?${qs.toString()}`)
     setItems(await res.json())
   }
@@ -57,7 +60,7 @@ export default function Page() {
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, category])
+  }, [status, category, disp])
 
   const filtered = useMemo(() => {
     if (!q) return items
@@ -76,7 +79,6 @@ export default function Page() {
         <Tabs defaultValue="items">
           <TabsList>
             <TabsTrigger value="items">Items</TabsTrigger>
-            <TabsTrigger value="schedule">Schedule Pickup</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
@@ -95,12 +97,17 @@ export default function Page() {
                     <SelectTrigger className="w-[200px]"><SelectValue placeholder="Filter by status" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Reported">Reported</SelectItem>
-                      <SelectItem value="Awaiting Pickup">Awaiting Pickup</SelectItem>
                       <SelectItem value="Scheduled">Scheduled</SelectItem>
                       <SelectItem value="Collected">Collected</SelectItem>
-                      <SelectItem value="Recycled">Recycled</SelectItem>
-                      <SelectItem value="Refurbished">Refurbished</SelectItem>
                       <SelectItem value="Safely Disposed">Safely Disposed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={disp} onValueChange={setDisp}>
+                    <SelectTrigger className="w-[200px]"><SelectValue placeholder="Filter by disposition" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Recyclable">Recyclable</SelectItem>
+                      <SelectItem value="Reusable">Reusable</SelectItem>
+                      <SelectItem value="Hazardous">Hazardous</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={category} onValueChange={setCategory}>
@@ -112,25 +119,27 @@ export default function Page() {
                       <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Button variant="outline" onClick={() => { setQ(""); setStatus(""); setCategory(""); setDisp(""); }}>Reset filters</Button>
                 </div>
                 <div className="border rounded-md">
-                  <div className="grid grid-cols-[24px_1fr_120px_140px_160px] gap-3 px-3 py-2 text-xs text-muted-foreground">
+                  <div className="grid grid-cols-[24px_200px_1fr_120px_140px_120px_120px] gap-3 px-3 py-2 text-xs text-muted-foreground">
                     <div />
+                    <div>ID</div>
                     <div>Name</div>
                     <div>Category</div>
+                    <div>Disposition</div>
                     <div>Status</div>
                     <div>Reported</div>
                   </div>
                   <Separator />
                   <div className="max-h-[420px] overflow-auto divide-y">
                     {filtered.map((i) => (
-                      <div key={i.id} className="grid grid-cols-[24px_1fr_120px_140px_160px] gap-3 items-center px-3 py-3">
+                      <div key={i.id} className="grid grid-cols-[24px_200px_1fr_120px_140px_120px_120px] gap-3 items-center px-3 py-3">
                         <Checkbox checked={!!selected[i.id]} onCheckedChange={(v) => setSelected((s) => ({ ...s, [i.id]: !!v }))} aria-label="Select row" />
-                        <div className="truncate">
-                          <div className="font-medium">{i.name}</div>
-                          <div className="text-xs text-muted-foreground truncate">{i.id}</div>
-                        </div>
+                        <div className="text-xs text-muted-foreground truncate">{i.id}</div>
+                        <div className="truncate font-medium">{i.name}</div>
                         <div><Badge variant="secondary">{i.category}</Badge></div>
+                        <div>{i.disposition ? <Badge variant="outline">{i.disposition}</Badge> : <span className="text-muted-foreground">—</span>}</div>
                         <div><Badge>{i.status}</Badge></div>
                         <div className="text-xs">{new Date(i.reported_date).toLocaleDateString()}</div>
                       </div>
@@ -139,9 +148,7 @@ export default function Page() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
 
-          <TabsContent value="schedule" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Schedule pickup</CardTitle>

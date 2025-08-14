@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { useEffect } from "react"
 
 type Item = { id: string; name: string }
-type Vendor = { id: string; company_name: string }
+type Vendor = { id: string; company_name: string; contact_person: string; email: string; cpcb_registration_no: string }
 
 export function SchedulePickupDialog({
   items,

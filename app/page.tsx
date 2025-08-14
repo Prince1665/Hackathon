@@ -3,9 +3,20 @@ import { AppNav } from "@/components/app-nav"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { getSession } from "@/lib/server/auth"
+import { listCampaigns } from "@/lib/server/data-mongo"
 
 export default async function Page() {
   const session = await getSession()
+  const campaigns = await listCampaigns()
+  const now = new Date()
+  const upcoming = campaigns
+    .filter((c) => {
+      const d = new Date(c.date)
+      // Only keep future or today
+      return d >= new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    })
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 6)
   return (
     <main>
       <AppNav />
@@ -42,6 +53,28 @@ export default async function Page() {
       {/* Content - centered grid of cards */}
       <section className="container py-12 md:py-16">
         <div className="grid gap-6 md:grid-cols-3">
+          {upcoming.length > 0 && (
+            <Card className="md:col-span-3">
+              <CardHeader>
+                <CardTitle>Upcoming campaigns</CardTitle>
+                <CardDescription>Open awareness drives and collection events visible to everyone.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {upcoming.map((c) => (
+                    <li key={c.id} className="rounded border p-3">
+                      <div className="text-sm text-muted-foreground">{new Date(c.date).toLocaleDateString()}</div>
+                      <div className="font-medium">{c.title}</div>
+                      {c.description ? (
+                        <div className="text-sm text-muted-foreground line-clamp-3 mt-1">{c.description}</div>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="md:col-span-1">
             <CardHeader>
               <CardTitle>Why it matters</CardTitle>

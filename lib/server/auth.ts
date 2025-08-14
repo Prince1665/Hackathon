@@ -1,6 +1,6 @@
-import crypto from "node:crypto"
+const crypto = require("node:crypto")
 import { cookies } from "next/headers"
-import { getSessionById, getUserByEmail } from "./auth-mongo"
+import { getSessionById, getUserByEmail, getUserById } from "./auth-mongo"
 
 // Minimal local User shape (legacy stub)
 export type User = {
@@ -59,7 +59,9 @@ export async function getSession(): Promise<Session | null> {
   if (sid) {
     const s = await getSessionById(sid)
     if (s) {
-      return { user: { user_id: String(s.userId), name: "", email: "", role: s.role as any, department_id: 0 } as any }
+      // Load user details to include email and name
+      const u = await getUserById(String(s.userId)).catch(() => null as any)
+      return { user: { user_id: String(s.userId), name: u?.name || "", email: u?.email || "", role: (u?.role || s.role) as any, department_id: (u?.department_id ?? 0) as any } as any }
     }
   }
   // Fallback to legacy JSON session cookie

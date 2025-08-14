@@ -1,17 +1,19 @@
 export const runtime = "nodejs"
 
 import { NextRequest, NextResponse } from "next/server"
-import { createItem, listItems, type ItemCategory, type ItemStatus } from "@/lib/server/data-mongo"
+import { createItem, listItems, type ItemCategory, type ItemStatus, type Disposition } from "@/lib/server/data-mongo"
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const status = searchParams.get("status") as ItemStatus | null
   const category = searchParams.get("category") as ItemCategory | null
   const department_id = searchParams.get("department_id")
+  const disposition = searchParams.get("disposition") as Disposition | null
   const rows = await listItems({
     status: status || undefined,
     category: category || undefined,
     department_id: department_id ? Number(department_id) : undefined,
+    disposition: (disposition as any) || undefined,
   })
   return NextResponse.json(rows)
 }
@@ -28,6 +30,7 @@ export async function POST(req: NextRequest) {
     department_id: Number(body.department_id),
     reported_by: body.reported_by,
     origin,
+    disposition: body.disposition || undefined,
   })
   return NextResponse.json(item)
 }
