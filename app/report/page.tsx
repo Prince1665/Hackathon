@@ -68,19 +68,20 @@ export default function ReportPage() {
     }
     const item: Item = await res.json()
     setCreated(item)
-    const dataUrl = await QRCode.toDataURL(item.qr_code_url, { margin: 1, scale: 6 })
+    // Generate QR code with just the item ID instead of full URL
+    const dataUrl = await QRCode.toDataURL(item.id, { margin: 1, scale: 6 })
     setQrDataUrl(dataUrl)
   }
 
   return (
     <main>
       <AppNav />
-      <section className="container py-8">
-        <div className="grid lg:grid-cols-2 gap-8">
-          <Card>
+      <section className="container py-4 sm:py-8 bg-gradient-to-b from-[#9ac37e]/5 to-transparent min-h-screen px-4">
+        <div className="grid lg:grid-cols-2 gap-4 sm:gap-8">
+          <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
             <CardHeader>
-              <CardTitle>Report e‑waste</CardTitle>
-              <CardDescription>Fill in the details to generate a QR tag for this item.</CardDescription>
+              <CardTitle className="text-[#3e5f44] text-xl font-bold">Report e‑waste</CardTitle>
+              <CardDescription className="text-[#3e5f44]/70">Fill in the details to generate a QR tag for this item.</CardDescription>
             </CardHeader>
             <CardContent>
               <form className="grid gap-4" onSubmit={onSubmit}>
@@ -130,11 +131,11 @@ export default function ReportPage() {
                   <Label htmlFor="reported_by">Your name or email</Label>
                   <Input id="reported_by" value={form.reported_by} onChange={(e) => setForm((f) => ({ ...f, reported_by: e.target.value }))} placeholder="e.g. alex@campus.edu" />
                 </div>
-                <Button type="submit" disabled={!canSubmit}>Create & generate QR</Button>
+                <Button type="submit" disabled={!canSubmit} className="bg-[#3e5f44] hover:bg-[#4a6e50] text-white w-full sm:w-auto">Create & generate QR</Button>
               </form>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
             <CardHeader>
               <CardTitle>QR Tag</CardTitle>
               <CardDescription>Print and attach this QR to the item.</CardDescription>
@@ -149,12 +150,12 @@ export default function ReportPage() {
                   {qrDataUrl ? (
                     <>
                       <img src={qrDataUrl || "/placeholder.svg"} alt="QR code for item" className="border rounded p-2 bg-white" />
-                      <a href={qrDataUrl} download={`ewaste-${created.id}.png`} className="text-sm underline">Download QR</a>
+                      <a href={qrDataUrl} download={`ewaste-${created.id}.png`} className="text-sm underline inline-block w-full sm:w-auto text-center sm:text-left">Download QR</a>
                     </>
                   ) : (
                     <div className="text-sm text-muted-foreground">Generating QR...</div>
                   )}
-                  <a className="text-sm text-blue-600 underline" href={created.qr_code_url} target="_blank" rel="noopener noreferrer">{created.qr_code_url}</a>
+                  <div className="text-sm text-muted-foreground">Item ID: {created.id}</div>
                 </>
               ) : (
                 <div className="text-muted-foreground text-sm">Submit the form to see the QR code here.</div>

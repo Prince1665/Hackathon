@@ -75,26 +75,26 @@ export default function Page() {
   return (
     <main>
       <AppNav />
-      <section className="container py-8 space-y-8">
+      <section className="container py-4 sm:py-8 space-y-4 sm:space-y-8 bg-gradient-to-b from-[#9ac37e]/5 to-transparent min-h-screen px-4">
         <Tabs defaultValue="items">
-          <TabsList>
-            <TabsTrigger value="items">Items</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 grid-rows-2 md:grid-cols-4 md:grid-rows-1 gap-3 p-3 bg-[#9ac37e]/10 rounded-lg border border-[#9ac37e]/30">
+            <TabsTrigger value="items" className="border border-[#9ac37e]/40 shadow-sm hover:border-[#9ac37e]/60">Items</TabsTrigger>
+            <TabsTrigger value="analytics" className="border border-[#9ac37e]/40 shadow-sm hover:border-[#9ac37e]/60">Analytics</TabsTrigger>
+            <TabsTrigger value="reports" className="border border-[#9ac37e]/40 shadow-sm hover:border-[#9ac37e]/60">Reports</TabsTrigger>
+            <TabsTrigger value="campaigns" className="border border-[#9ac37e]/40 shadow-sm hover:border-[#9ac37e]/60">Campaigns</TabsTrigger>
           </TabsList>
 
           <TabsContent value="items" className="space-y-4">
-            <Card>
+            <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
               <CardHeader>
-                <CardTitle>All e‑waste items</CardTitle>
-                <CardDescription>Search, filter and manage items.</CardDescription>
+                <CardTitle className="text-[#3e5f44] text-xl font-bold">All e‑waste items</CardTitle>
+                <CardDescription className="text-[#3e5f44]/70">Search, filter and manage items.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-col md:flex-row gap-3">
-                  <Input placeholder="Search by name, id, reporter..." value={q} onChange={(e) => setQ(e.target.value)} className="md:w-[280px]" />
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Input placeholder="Search by name, id, reporter..." value={q} onChange={(e) => setQ(e.target.value)} className="sm:w-[280px]" />
                   <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger className="w-[200px]"><SelectValue placeholder="Filter by status" /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Filter by status" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Reported">Reported</SelectItem>
                       <SelectItem value="Scheduled">Scheduled</SelectItem>
@@ -103,7 +103,7 @@ export default function Page() {
                     </SelectContent>
                   </Select>
                   <Select value={disp} onValueChange={setDisp}>
-                    <SelectTrigger className="w-[200px]"><SelectValue placeholder="Filter by disposition" /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Filter by disposition" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Recyclable">Recyclable</SelectItem>
                       <SelectItem value="Reusable">Reusable</SelectItem>
@@ -111,7 +111,7 @@ export default function Page() {
                     </SelectContent>
                   </Select>
                   <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger className="w-[200px]"><SelectValue placeholder="Filter by category" /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Filter by category" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Laptop">Laptop</SelectItem>
                       <SelectItem value="Monitor">Monitor</SelectItem>
@@ -119,29 +119,56 @@ export default function Page() {
                       <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button variant="outline" onClick={() => { setQ(""); setStatus(""); setCategory(""); setDisp(""); }}>Reset filters</Button>
+                  <Button variant="outline" onClick={() => { setQ(""); setStatus(""); setCategory(""); setDisp(""); }} className="border-[#9ac37e]/30 text-[#3e5f44] hover:bg-[#9ac37e]/10">Reset filters</Button>
                 </div>
-                <div className="border rounded-md">
-                  <div className="grid grid-cols-[24px_200px_1fr_120px_140px_120px_120px] gap-3 px-3 py-2 text-xs text-muted-foreground">
-                    <div />
-                    <div>ID</div>
-                    <div>Name</div>
-                    <div>Category</div>
-                    <div>Disposition</div>
-                    <div>Status</div>
-                    <div>Reported</div>
+                <div className="border rounded-md overflow-hidden">
+                  {/* Desktop table view */}
+                  <div className="hidden md:block">
+                    <div className="grid grid-cols-[24px_200px_1fr_120px_140px_120px_120px] gap-3 px-3 py-2 text-xs text-muted-foreground">
+                      <div />
+                      <div>ID</div>
+                      <div>Name</div>
+                      <div>Category</div>
+                      <div>Disposition</div>
+                      <div>Status</div>
+                      <div>Reported</div>
+                    </div>
+                    <Separator />
+                    <div className="max-h-[420px] overflow-auto divide-y">
+                      {filtered.map((i) => (
+                        <div key={i.id} className="grid grid-cols-[24px_200px_1fr_120px_140px_120px_120px] gap-3 items-center px-3 py-3">
+                          <Checkbox checked={!!selected[i.id]} onCheckedChange={(v) => setSelected((s) => ({ ...s, [i.id]: !!v }))} aria-label="Select row" />
+                          <div className="text-xs text-muted-foreground truncate">{i.id}</div>
+                          <div className="truncate font-medium">{i.name}</div>
+                          <div><Badge variant="secondary">{i.category}</Badge></div>
+                          <div>{i.disposition ? <Badge variant="outline">{i.disposition}</Badge> : <span className="text-muted-foreground">—</span>}</div>
+                          <div><Badge>{i.status}</Badge></div>
+                          <div className="text-xs">{new Date(i.reported_date).toLocaleDateString()}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <Separator />
-                  <div className="max-h-[420px] overflow-auto divide-y">
+                  {/* Mobile card view */}
+                  <div className="md:hidden max-h-[420px] overflow-auto divide-y">
                     {filtered.map((i) => (
-                      <div key={i.id} className="grid grid-cols-[24px_200px_1fr_120px_140px_120px_120px] gap-3 items-center px-3 py-3">
-                        <Checkbox checked={!!selected[i.id]} onCheckedChange={(v) => setSelected((s) => ({ ...s, [i.id]: !!v }))} aria-label="Select row" />
-                        <div className="text-xs text-muted-foreground truncate">{i.id}</div>
-                        <div className="truncate font-medium">{i.name}</div>
-                        <div><Badge variant="secondary">{i.category}</Badge></div>
-                        <div>{i.disposition ? <Badge variant="outline">{i.disposition}</Badge> : <span className="text-muted-foreground">—</span>}</div>
-                        <div><Badge>{i.status}</Badge></div>
-                        <div className="text-xs">{new Date(i.reported_date).toLocaleDateString()}</div>
+                      <div key={i.id} className="p-4 space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            <Checkbox checked={!!selected[i.id]} onCheckedChange={(v) => setSelected((s) => ({ ...s, [i.id]: !!v }))} aria-label="Select row" />
+                            <div>
+                              <div className="font-medium">{i.name}</div>
+                              <div className="text-xs text-muted-foreground">{i.id}</div>
+                            </div>
+                          </div>
+                          <Badge>{i.status}</Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Badge variant="secondary">{i.category}</Badge>
+                          {i.disposition && <Badge variant="outline">{i.disposition}</Badge>}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Reported: {new Date(i.reported_date).toLocaleDateString()}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -149,7 +176,7 @@ export default function Page() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
               <CardHeader>
                 <CardTitle>Schedule pickup</CardTitle>
                 <CardDescription>Select items with status Reported/Awaiting Pickup and assign a vendor.</CardDescription>
@@ -172,7 +199,7 @@ export default function Page() {
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-4">
-            <Card>
+            <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
               <CardHeader>
                 <CardTitle>KPIs</CardTitle>
                 <CardDescription>High-level performance indicators.</CardDescription>
@@ -194,7 +221,7 @@ export default function Page() {
               </CardContent>
             </Card>
             <div className="grid lg:grid-cols-2 gap-4">
-              <Card>
+              <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
                 <CardHeader>
                   <CardTitle>Monthly volume</CardTitle>
                 </CardHeader>
@@ -212,7 +239,7 @@ export default function Page() {
                   </ul>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
                 <CardHeader>
                   <CardTitle>Category distribution</CardTitle>
                 </CardHeader>

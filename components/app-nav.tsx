@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { ThemeToggle } from "@/components/theme-toggle"
 import {
   Dialog,
   DialogContent,
@@ -65,12 +66,13 @@ export function AppNav({ className }: { className?: string }) {
           </nav>
         </div>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           {role ? (
             <Button size="sm" variant="ghost" onClick={onLogout}>
               Logout
             </Button>
           ) : (
-            <Button asChild size="sm">
+            <Button asChild size="sm" className="bg-[#3e5f44] hover:bg-[#4a6e50] text-white">
               <a href="/login">Login</a>
             </Button>
           )}

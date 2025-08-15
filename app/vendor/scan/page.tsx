@@ -198,9 +198,9 @@ export default function VendorScanPage() {
   return (
     <main>
       <AppNav />
-      <section className="container py-8 grid gap-6">
+      <section className="container py-4 sm:py-8 grid gap-4 sm:gap-6 px-4">
         <Tabs defaultValue="scan">
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="scan">Scan</TabsTrigger>
             <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
           </TabsList>
@@ -212,29 +212,29 @@ export default function VendorScanPage() {
                 <CardDescription>Use device camera to scan item QR and update status.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
-                <div className="grid sm:grid-cols-[1fr_auto] gap-3 items-end">
+                <div className="grid gap-3 items-end">
                   <div className="grid gap-2">
                     <Label htmlFor="manual">Manual item ID or QR URL (fallback)</Label>
                     <Input id="manual" placeholder="Paste QR URL or Item ID" onChange={(e) => setResult(e.target.value)} value={result} />
                   </div>
-                  <Button onClick={() => handleDecoded(result)} disabled={!result}>Lookup</Button>
+                  <Button onClick={() => handleDecoded(result)} disabled={!result} className="w-full sm:w-auto">Lookup</Button>
                 </div>
                 <div className="grid gap-3">
                   <div className="relative rounded border overflow-hidden bg-black/80 aspect-video">
                     <video ref={videoRef} className="w-full h-full object-cover" muted autoPlay playsInline />
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     {!cameraReady ? (
                       <>
-                        <Button onClick={startScan}>Start Camera</Button>
+                        <Button onClick={startScan} className="flex-1 sm:flex-none">Start Camera</Button>
                       </>
                     ) : (
                       <>
-                        <Button onClick={scanQRCode}>Scan QR</Button>
-                        <Button variant="outline" onClick={toggleCamera}>
-                          Switch Camera ({facingMode === "environment" ? "Back" : "Front"})
+                        <Button onClick={scanQRCode} className="flex-1 sm:flex-none">Scan QR</Button>
+                        <Button variant="outline" onClick={toggleCamera} className="flex-1 sm:flex-none text-xs sm:text-sm">
+                          Switch ({facingMode === "environment" ? "Back" : "Front"})
                         </Button>
-                        <Button variant="outline" onClick={stopCamera}>Stop</Button>
+                        <Button variant="outline" onClick={stopCamera} className="flex-1 sm:flex-none">Stop</Button>
                       </>
                     )}
                   </div>
@@ -250,9 +250,9 @@ export default function VendorScanPage() {
                       <Badge>{item.status}</Badge>
                     </div>
                     <div className="mt-3 flex gap-2 flex-wrap">
-                      <Button onClick={confirmCollection} disabled={item.status === "Collected"}>Confirm Collection</Button>
+                      <Button onClick={confirmCollection} disabled={item.status === "Collected"} className="flex-1 sm:flex-none">Confirm Collection</Button>
                       {item.disposition === "Hazardous" && item.status !== "Safely Disposed" ? (
-                        <Button variant="destructive" onClick={markSafelyDisposed}>Mark Safely Disposed</Button>
+                        <Button variant="destructive" onClick={markSafelyDisposed} className="flex-1 sm:flex-none">Mark Safely Disposed</Button>
                       ) : null}
                     </div>
                   </div>
