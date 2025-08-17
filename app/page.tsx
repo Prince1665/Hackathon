@@ -31,8 +31,6 @@ export default async function Page() {
             backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.6)), url('/ewaste-bg.jpg')`
           }}
         ></div>
-        {/* Overlay for better text readability */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#2d5016]/80 via-[#3e5f44]/70 to-[#1a2e0a]/80"></div>
         <div className="container min-h-[calc(100svh-56px)] grid place-items-center py-16 md:py-24">
           <div className="max-w-4xl text-center space-y-8">
             {/* Theme toggle for home screen */}

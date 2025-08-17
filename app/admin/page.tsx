@@ -77,11 +77,11 @@ export default function Page() {
       <AppNav />
       <section className="container py-4 sm:py-8 space-y-4 sm:space-y-8 bg-gradient-to-b from-[#9ac37e]/5 to-transparent min-h-screen px-4">
         <Tabs defaultValue="items">
-          <TabsList className="grid w-full grid-cols-2 grid-rows-2 md:grid-cols-4 md:grid-rows-1 gap-3 p-3 bg-[#9ac37e]/10 rounded-lg border border-[#9ac37e]/30">
-            <TabsTrigger value="items" className="border border-[#9ac37e]/40 shadow-sm hover:border-[#9ac37e]/60">Items</TabsTrigger>
-            <TabsTrigger value="analytics" className="border border-[#9ac37e]/40 shadow-sm hover:border-[#9ac37e]/60">Analytics</TabsTrigger>
-            <TabsTrigger value="reports" className="border border-[#9ac37e]/40 shadow-sm hover:border-[#9ac37e]/60">Reports</TabsTrigger>
-            <TabsTrigger value="campaigns" className="border border-[#9ac37e]/40 shadow-sm hover:border-[#9ac37e]/60">Campaigns</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 grid-rows-2 md:grid-cols-4 md:grid-rows-1 gap-3 p-3 bg-[#9ac37e]/10 rounded-none border-2 border-[#3e5f44] h-auto">
+            <TabsTrigger value="items" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-12 flex items-center justify-center">Items</TabsTrigger>
+            <TabsTrigger value="analytics" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-12 flex items-center justify-center">Analytics</TabsTrigger>
+            <TabsTrigger value="reports" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-12 flex items-center justify-center">Reports</TabsTrigger>
+            <TabsTrigger value="campaigns" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-12 flex items-center justify-center">Campaigns</TabsTrigger>
           </TabsList>
 
           <TabsContent value="items" className="space-y-4">
