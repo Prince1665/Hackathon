@@ -46,9 +46,14 @@ export default async function Page() {
             </p>
             <div className="flex flex-wrap justify-center gap-3 sm:gap-4 pt-4 px-4">
               {!session ? (
-                <Button asChild className="bg-[#ff6b35] hover:bg-[#e55a2b] text-white border-0 px-4 sm:px-8 py-3 text-base sm:text-lg font-semibold rounded-lg transition-all duration-200 shadow-xl hover:shadow-2xl relative z-10 w-full sm:w-auto">
-                  <Link href="/login">Login</Link>
-                </Button>
+                <>
+                  <Button asChild className="bg-[#ff6b35] hover:bg-[#e55a2b] text-white border-0 px-4 sm:px-8 py-3 text-base sm:text-lg font-semibold rounded-lg transition-all duration-200 shadow-xl hover:shadow-2xl relative z-10 w-full sm:w-auto">
+                    <Link href="/login">Login</Link>
+                  </Button>
+                  <Button asChild className="bg-[#9ac37e] hover:bg-[#8bb56f] text-white border-0 px-4 sm:px-8 py-3 text-base sm:text-lg font-semibold rounded-lg transition-all duration-200 shadow-xl hover:shadow-2xl relative z-10 w-full sm:w-auto">
+                    <Link href="/signup">Sign Up</Link>
+                  </Button>
+                </>
               ) : null}
               <Button asChild className="bg-white/20 hover:bg-white/30 text-white border-white/40 hover:border-white/60 px-4 sm:px-8 py-3 text-base sm:text-lg font-medium rounded-lg transition-all duration-200 backdrop-blur-md shadow-lg hover:shadow-xl relative z-10 w-full sm:w-auto">
                 <Link href="/report">Report an item</Link>

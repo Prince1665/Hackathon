@@ -3,10 +3,23 @@ const bcrypt = require("bcryptjs")
 import { randomUUID } from "crypto"
 import { ObjectId } from "mongodb"
 
-export async function createUser({ name, email, password, role, department_id }: { name?: string; email: string; password: string; role?: string; department_id?: number }) {
+export async function createUser({ name, email, password, role, department_id, vendor_id }: { name?: string; email: string; password: string; role?: string; department_id?: number; vendor_id?: any }) {
   const db = await getDb()
   const passwordHash = await bcrypt.hash(password, 12)
-  await db.collection("users").insertOne({ name: name || email.split("@")[0], email, passwordHash, role: role || "student", department_id: department_id || 0 })
+  const userData: any = { 
+    name: name || email.split("@")[0], 
+    email, 
+    passwordHash, 
+    role: role || "student", 
+    department_id: department_id || 0,
+    created_at: new Date()
+  }
+  
+  if (vendor_id) {
+    userData.vendor_id = vendor_id
+  }
+  
+  await db.collection("users").insertOne(userData)
 }
 
 export async function getUserByEmail(email: string) {

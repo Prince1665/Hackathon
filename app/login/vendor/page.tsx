@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,6 +16,7 @@ export default function VendorLoginPage() {
   const [loading, setLoading] = useState(false)
 
   const from = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("from") || "" : ""
+  const message = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("message") || "" : ""
 
   return (
     <main className="min-h-[100svh] grid place-items-center p-4 relative overflow-hidden">
@@ -39,6 +41,11 @@ export default function VendorLoginPage() {
             <CardDescription className="text-[#3e5f44]/70 dark:text-[#9ac37e]/70">Use your vendor credentials</CardDescription>
           </CardHeader>
           <CardContent>
+            {message && (
+              <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-md text-sm">
+                {decodeURIComponent(message)}
+              </div>
+            )}
             <form action="/api/auth/login" method="post" className="grid gap-4">
               <input type="hidden" name="from" value={from} />
               <div className="grid gap-2">
@@ -53,6 +60,14 @@ export default function VendorLoginPage() {
               <Button type="submit" disabled={loading} className="bg-[#3e5f44] hover:bg-[#4a6e50] text-white dark:bg-[#9ac37e] dark:hover:bg-[#8bb56f] dark:text-[#1a2e0a] py-3 text-lg font-semibold">
                 {loading ? "Signing in..." : "Sign in"}
               </Button>
+              <div className="text-center mt-2">
+                <p className="text-sm text-[#3e5f44]/70 dark:text-[#9ac37e]/70">
+                  Don't have an account?{" "}
+                  <Link href="/signup/vendor" className="text-[#3e5f44] dark:text-[#9ac37e] font-semibold hover:underline">
+                    Sign up
+                  </Link>
+                </p>
+              </div>
             </form>
           </CardContent>
         </Card>

@@ -75,7 +75,7 @@ export function SchedulePickupDialog({
               <SelectTrigger><SelectValue placeholder="Select a vendor" /></SelectTrigger>
               <SelectContent>
                 {vendors.map((v) => (
-                  <SelectItem key={v.id} value={v.id}>{v.company_name}</SelectItem>
+                  <SelectItem key={v.id} value={v.id}>{v.contact_person} ({v.company_name})</SelectItem>
                 ))}
               </SelectContent>
             </Select>

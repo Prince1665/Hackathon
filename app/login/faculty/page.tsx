@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -53,6 +54,14 @@ export default function FacultyLoginPage() {
               <Button type="submit" disabled={loading} className="bg-[#3e5f44] hover:bg-[#4a6e50] text-white dark:bg-[#9ac37e] dark:hover:bg-[#8bb56f] dark:text-[#1a2e0a] py-3 text-lg font-semibold">
                 {loading ? "Signing in..." : "Sign in"}
               </Button>
+              <div className="text-center mt-2">
+                <p className="text-sm text-[#3e5f44]/70 dark:text-[#9ac37e]/70">
+                  Don't have an account?{" "}
+                  <Link href="/signup/faculty" className="text-[#3e5f44] dark:text-[#9ac37e] font-semibold hover:underline">
+                    Sign up
+                  </Link>
+                </p>
+              </div>
             </form>
           </CardContent>
         </Card>

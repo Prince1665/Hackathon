@@ -157,9 +157,11 @@ export async function analyticsCategoryDistribution(): Promise<{ category: ItemC
 export async function analyticsRecoveryRate(): Promise<{ rate: number; recycled: number; disposed: number }> {
   const items = await listItems()
   const recycled = items.filter((i) => i.status === "Recycled").length
-  const disposed = items.filter((i) => ["Recycled", "Refurbished", "Safely Disposed"].includes(i.status)).length
+  const refurbished = items.filter((i) => i.status === "Refurbished").length
+  const safelyDisposed = items.filter((i) => i.status === "Safely Disposed").length
+  const disposed = recycled + refurbished + safelyDisposed
   const total = items.length
-  const rate = total ? Math.round(((recycled / total) * 100 + Number.EPSILON) * 100) / 100 : 0
+  const rate = total ? Math.round(((disposed / total) * 100 + Number.EPSILON) * 100) / 100 : 0
   return { rate, recycled, disposed }
 }
 
