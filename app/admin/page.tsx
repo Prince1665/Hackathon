@@ -501,7 +501,7 @@ function ReportsSection() {
     doc.setFontSize(9)
     doc.setTextColor(0, 0, 0)
     doc.setFont("helvetica", "normal")
-    const summaryText = `This report presents a comprehensive analysis of e-waste management activities for the specified period, demonstrating compliance with Central Pollution Control Board (CPCB) regulations and E-Waste Management Rules 2016. The organization has processed ${summary.total} electronic items with a recovery rate of ${summary.environmentalImpact.recoveryRate}%, contributing to environmental sustainability through proper recycling and disposal practices. Environmental benefits include approximately ${summary.environmentalImpact.estimatedMetalRecovered.toFixed(1)} kg of metal recovery, ${summary.environmentalImpact.estimatedCO2Saved.toFixed(2)} tons of CO₂ emissions avoided, and ${summary.environmentalImpact.estimatedEnergyRecovered.toFixed(0)} kWh of energy recovered from processed items.`
+    const summaryText = `This report presents a comprehensive analysis of e-waste management activities for the specified period, demonstrating compliance with Central Pollution Control Board (CPCB) regulations and E-Waste Management Rules 2016. The organization has processed ${summary.total} electronic items with a recovery rate of ${summary.environmentalImpact.recoveryRate}%, contributing to environmental sustainability through proper recycling and disposal practices.`
     
     const splitSummary = doc.splitTextToSize(summaryText, 170)
     doc.text(splitSummary, 20, yPosition + 16)
