@@ -98,6 +98,9 @@ export default async function Page() {
                       {c.description ? (
                         <div className="text-xs md:text-sm text-[#3e5f44]/60 line-clamp-3 mt-2">{c.description}</div>
                       ) : null}
+                      <div className="text-xs text-[#3e5f44]/50 mt-2 flex items-center gap-1">
+                        🌱 <span>Join for sustainability rewards & impact tracking</span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -129,7 +132,9 @@ export default async function Page() {
                 { title: "3. Smart Scheduling", desc: "Categorization and vendor pickup scheduling for efficient operations." },
                 { title: "4. Compliance & Reporting", desc: "CPCB/E‑Waste Rules aligned reporting for audits and traceability." },
                 { title: "5. Engagement & Awareness", desc: "Campaigns, challenges, and collection drives to boost participation." },
-                { title: "6. Analytics Dashboard", desc: "Trends, recovery rates, and environmental impact of recycling." }
+                { title: "6. Analytics Dashboard", desc: "Trends, recovery rates, and environmental impact of recycling." },
+                { title: "7. Carbon Impact Tracking", desc: "Real-time CO₂ savings, energy conservation, and landfill diversion metrics." },
+                { title: "8. Sustainability Rewards", desc: "Department leaderboards and green challenges to encourage participation." }
               ].map((feature, index) => (
                 <div key={index} className="rounded-lg border border-[#9ac37e]/30 p-3 bg-gradient-to-br from-[#9ac37e]/5 to-transparent hover:from-[#9ac37e]/10 transition-all duration-200 hover:shadow-sm">
                   <div className="font-semibold text-[#3e5f44] text-xs md:text-sm">{feature.title}</div>

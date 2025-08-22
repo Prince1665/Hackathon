@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Gavel } from "lucide-react"
+import Link from "next/link"
 // Import with error handling for browser environment
 import { BrowserQRCodeReader } from "@zxing/browser"
 

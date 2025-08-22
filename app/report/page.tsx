@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Check, ChevronsUpDown, Gavel } from "lucide-react"
 import { cn } from "@/lib/utils"
 import QRCode from "qrcode"
 
@@ -68,6 +69,18 @@ export default function ReportPage() {
   const [priceLoading, setPriceLoading] = useState(false)
   const [usePredictedPrice, setUsePredictedPrice] = useState(true)
   const [customPrice, setCustomPrice] = useState<string>("")
+  const [priceConfirmed, setPriceConfirmed] = useState(false)
+  const [confirmedPriceDetails, setConfirmedPriceDetails] = useState<{
+    price: number;
+    source: "ml_predicted" | "user_provided";
+    predictedPrice?: number;
+  } | null>(null)
+  
+  // Auction-related state
+  const [showAuctionDialog, setShowAuctionDialog] = useState(false)
+  const [auctionDuration, setAuctionDuration] = useState("24")
+  const [creatingAuction, setCreatingAuction] = useState(false)
+  const [auctionCreated, setAuctionCreated] = useState(false)
 
   useEffect(() => {
     fetch("/api/departments").then(async (r) => setDepartments(await r.json()))
@@ -112,8 +125,18 @@ export default function ReportPage() {
 
       if (response.ok) {
         const data = await response.json()
-        setPredictedPrice(data.predicted_price)
-        setUsePredictedPrice(true)
+        if (data.status === "success" && data.predicted_price) {
+          setPredictedPrice(data.predicted_price)
+          setUsePredictedPrice(true)
+        } else {
+          console.error("Price prediction API returned error:", data.error)
+          setPredictedPrice(null)
+        }
+      } else {
+        console.error("Price prediction API failed with status:", response.status)
+        const errorData = await response.json().catch(() => ({ error: 'API request failed' }))
+        console.error("Error details:", errorData.error)
+        setPredictedPrice(null)
       }
     } catch (error) {
       console.error("Error predicting price:", error)
@@ -127,11 +150,93 @@ export default function ReportPage() {
     const debounceTimer = setTimeout(() => {
       if (form.category && form.original_price && form.used_duration && form.user_lifespan && form.condition && form.build_quality) {
         predictPrice()
+        // Reset price confirmation when form changes
+        setPriceConfirmed(false)
+        setConfirmedPriceDetails(null)
       }
     }, 1000) // Debounce for 1 second
 
     return () => clearTimeout(debounceTimer)
   }, [form.category, form.original_price, form.used_duration, form.user_lifespan, form.condition, form.build_quality, predictPrice])
+
+  // Function to confirm price selection
+  const confirmPrice = useCallback(() => {
+    if (usePredictedPrice && predictedPrice) {
+      setConfirmedPriceDetails({
+        price: predictedPrice,
+        source: "ml_predicted",
+        predictedPrice: predictedPrice
+      })
+    } else if (!usePredictedPrice && customPrice) {
+      setConfirmedPriceDetails({
+        price: Number(customPrice),
+        source: "user_provided",
+        predictedPrice: predictedPrice || undefined
+      })
+    }
+    setPriceConfirmed(true)
+  }, [usePredictedPrice, predictedPrice, customPrice])
+
+  // Function to create auction for the item
+  const createAuction = useCallback(async () => {
+    console.log("createAuction called", { confirmedPriceDetails, created, auctionDuration })
+    
+    if (!confirmedPriceDetails || !created) {
+      console.log("Early return - missing data:", { confirmedPriceDetails: !!confirmedPriceDetails, created: !!created })
+      alert("Missing required data. Please ensure the item is created and price is confirmed.")
+      return
+    }
+    
+    setCreatingAuction(true)
+    try {
+      console.log("Getting user session...")
+      // Get current user session for created_by
+      const sessionResponse = await fetch("/api/auth/session")
+      const session = await sessionResponse.json()
+      const userEmail = session?.user?.email || "anonymous@example.com"
+      console.log("User email:", userEmail)
+      
+      const auctionData = {
+        item_id: created.id,
+        created_by: userEmail,
+        starting_price: Math.max(1, Math.floor(confirmedPriceDetails.price * 0.5)), // Start at 50% of confirmed price
+        auction_duration_hours: parseInt(auctionDuration)
+      }
+      
+      console.log("Auction data:", auctionData)
+      
+      const response = await fetch("/api/auctions/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(auctionData)
+      })
+      
+      console.log("Response status:", response.status)
+      const result = await response.json()
+      console.log("Response data:", result)
+      
+      if (response.ok && result.status === "success") {
+        setShowAuctionDialog(false)
+        setAuctionCreated(true)
+        alert("Auction created successfully! Your item is now available for bidding.")
+      } else {
+        throw new Error(result.error || "Failed to create auction")
+      }
+    } catch (error) {
+      console.error("Error creating auction:", error)
+      alert(`Failed to create auction: ${error instanceof Error ? error.message : 'Please try again.'}`)
+    } finally {
+      setCreatingAuction(false)
+    }
+  }, [confirmedPriceDetails, created, auctionDuration])
+
+  // Reset confirmation when price options change
+  useEffect(() => {
+    if (priceConfirmed) {
+      setPriceConfirmed(false)
+      setConfirmedPriceDetails(null)
+    }
+  }, [usePredictedPrice, customPrice])
 
   const canSubmit = useMemo(() => {
     // Check basic required fields
@@ -149,22 +254,18 @@ export default function ReportPage() {
       if (field && Number(field) < 0) return false
     }
     
+    // Require price confirmation
+    if (!priceConfirmed || !confirmedPriceDetails) return false
+    
     return true
-  }, [form])
+  }, [form, priceConfirmed, confirmedPriceDetails])
 
   const onSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
-    if (isSubmitting) return
+    if (isSubmitting || !confirmedPriceDetails) return
     
     setIsSubmitting(true)
     try {
-      // Determine the final current price
-      const finalCurrentPrice = usePredictedPrice && predictedPrice 
-        ? predictedPrice 
-        : customPrice 
-        ? Number(customPrice) 
-        : predictedPrice || 0
-
       const res = await fetch("/api/items", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -183,14 +284,26 @@ export default function ReportPage() {
           condition: form.condition || undefined,
           original_price: form.original_price || undefined,
           used_duration: form.used_duration || undefined,
-          current_price: finalCurrentPrice,
+          current_price: confirmedPriceDetails.price,
+          price_source: confirmedPriceDetails.source,
+          predicted_price: confirmedPriceDetails.predictedPrice,
         }),
       })
       if (!res.ok) {
-        alert("Failed to create item")
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
+        const errorMessage = errorData.error || errorData.message || 'Failed to create item'
+        alert(`Error: ${errorMessage}`)
         return
       }
-      const item: Item = await res.json()
+      
+      const responseData = await res.json()
+      const item: Item = responseData.item || responseData
+      
+      if (!item || !item.id) {
+        alert("Item created but no data returned")
+        return
+      }
+      
       setCreated(item)
       // Generate QR code with just the item ID instead of full URL
       const dataUrl = await QRCode.toDataURL(item.id, { margin: 1, scale: 6 })
@@ -201,7 +314,7 @@ export default function ReportPage() {
     } finally {
       setIsSubmitting(false)
     }
-  }, [form, isSubmitting])
+  }, [confirmedPriceDetails, isSubmitting, form])
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#9ac37e]/5 to-transparent">
@@ -210,8 +323,20 @@ export default function ReportPage() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8">
           <Card className="border-[#9ac37e]/20 shadow-md hover:shadow-lg transition-shadow duration-200 w-full">
             <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-[#3e5f44] text-lg sm:text-xl font-bold">Report e‑waste</CardTitle>
-              <CardDescription className="text-[#3e5f44]/70 text-sm sm:text-base">Fill in the details to generate a QR tag for this item.</CardDescription>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-[#3e5f44] text-lg sm:text-xl font-bold">Report e‑waste</CardTitle>
+                  <CardDescription className="text-[#3e5f44]/70 text-sm sm:text-base">Fill in the details to generate a QR tag for this item.</CardDescription>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => window.open('/auctions/my-auctions', '_blank')}
+                  className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                >
+                  My Auctions
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-4 sm:p-6">
               <form className="grid gap-4" onSubmit={onSubmit}>
@@ -447,51 +572,97 @@ export default function ReportPage() {
                         ₹{predictedPrice.toLocaleString()}
                       </div>
                       
-                      <div className="space-y-3">
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="radio"
-                            id="use-predicted"
-                            name="price-option"
-                            checked={usePredictedPrice}
-                            onChange={() => setUsePredictedPrice(true)}
-                            className="w-4 h-4 text-green-600"
-                          />
-                          <Label htmlFor="use-predicted" className="cursor-pointer">
-                            Use ML predicted price (₹{predictedPrice.toLocaleString()})
-                          </Label>
-                        </div>
-                        
-                        <div className="space-y-2">
+                      {!priceConfirmed ? (
+                        <div className="space-y-3">
                           <div className="flex items-center space-x-2">
                             <input
                               type="radio"
-                              id="use-custom"
+                              id="use-predicted"
                               name="price-option"
-                              checked={!usePredictedPrice}
-                              onChange={() => setUsePredictedPrice(false)}
+                              checked={usePredictedPrice}
+                              onChange={() => setUsePredictedPrice(true)}
                               className="w-4 h-4 text-green-600"
                             />
-                            <Label htmlFor="use-custom" className="cursor-pointer">
-                              Set my own price
+                            <Label htmlFor="use-predicted" className="cursor-pointer">
+                              Use ML predicted price (₹{predictedPrice.toLocaleString()})
                             </Label>
                           </div>
                           
-                          {!usePredictedPrice && (
-                            <div className="ml-6">
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                placeholder="Enter your price"
-                                value={customPrice}
-                                onChange={(e) => setCustomPrice(e.target.value)}
-                                className="max-w-xs"
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="radio"
+                                id="use-custom"
+                                name="price-option"
+                                checked={!usePredictedPrice}
+                                onChange={() => setUsePredictedPrice(false)}
+                                className="w-4 h-4 text-green-600"
                               />
+                              <Label htmlFor="use-custom" className="cursor-pointer">
+                                Set my own price
+                              </Label>
                             </div>
-                          )}
+                            
+                            {!usePredictedPrice && (
+                              <div className="ml-6">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="Enter your price"
+                                  value={customPrice}
+                                  onChange={(e) => setCustomPrice(e.target.value)}
+                                  className="max-w-xs"
+                                />
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex justify-center pt-2">
+                            <Button 
+                              type="button"
+                              onClick={confirmPrice}
+                              disabled={(!usePredictedPrice && !customPrice) || (usePredictedPrice && !predictedPrice)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
+                            >
+                              Confirm Price Selection
+                            </Button>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {/* Show confirmed price details */}
+                          <div className="bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-sm font-medium text-green-800 dark:text-green-200">Price Confirmed</span>
+                              </div>
+                              <Button 
+                                type="button" 
+                                onClick={() => {
+                                  setPriceConfirmed(false)
+                                  setConfirmedPriceDetails(null)
+                                }}
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                              >
+                                Change
+                              </Button>
+                            </div>
+                            <div className="mt-2">
+                              <div className="text-lg font-bold text-green-700 dark:text-green-300">
+                                ₹{confirmedPriceDetails?.price.toLocaleString()}
+                              </div>
+                              <div className="text-xs text-green-600 dark:text-green-400">
+                                {confirmedPriceDetails?.source === "ml_predicted" && "🤖 Using ML Predicted Price"}
+                                {confirmedPriceDetails?.source === "user_provided" && "👤 Using Your Custom Price"}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       
                       <div className="text-xs text-muted-foreground">
                         💡 Our AI considers category, condition, age, brand, and market trends to estimate current value.
@@ -505,7 +676,7 @@ export default function ReportPage() {
                   disabled={!canSubmit || isSubmitting} 
                   className="bg-[#3e5f44] hover:bg-[#4a6e50] disabled:opacity-50 text-white w-full sm:w-auto transition-colors duration-200"
                 >
-                  {isSubmitting ? "Creating..." : "Create & generate QR"}
+                  {isSubmitting ? "Creating..." : !priceConfirmed ? "Please confirm price first" : "Create & generate QR"}
                 </Button>
               </form>
             </CardContent>
@@ -531,6 +702,31 @@ export default function ReportPage() {
                     <div className="text-sm text-muted-foreground">Generating QR...</div>
                   )}
                   <div className="text-sm text-muted-foreground">Item ID: {created.id}</div>
+                  
+                  {/* Auction Creation Option - Only show after item is successfully created */}
+                  {confirmedPriceDetails && !auctionCreated ? (
+                    <div className="mt-4 p-3 border border-green-200 rounded-lg bg-green-50 dark:bg-green-950/50">
+                      <div className="text-sm text-green-700 dark:text-green-300 mb-2">
+                        💰 Want to sell this item through auction?
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => setShowAuctionDialog(true)}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2 text-green-700 border-green-300 hover:bg-green-50"
+                      >
+                        <Gavel className="h-4 w-4" />
+                        Create Auction
+                      </Button>
+                    </div>
+                  ) : auctionCreated ? (
+                    <div className="mt-4 p-3 border border-blue-200 rounded-lg bg-blue-50 dark:bg-blue-950/50">
+                      <div className="text-sm text-blue-700 dark:text-blue-300">
+                        ✅ Auction created successfully! Check "My Auctions" to track bidding.
+                      </div>
+                    </div>
+                  ) : null}
                 </>
               ) : (
                 <div className="text-muted-foreground text-sm">Submit the form to see the QR code here.</div>
@@ -539,6 +735,66 @@ export default function ReportPage() {
           </Card>
         </div>
       </section>
+      
+      {/* Auction Creation Dialog */}
+      <Dialog open={showAuctionDialog} onOpenChange={setShowAuctionDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gavel className="h-5 w-5" />
+              Create Auction
+            </DialogTitle>
+            <DialogDescription>
+              Set up an auction for your item. Buyers can bid starting from 50% of your confirmed price.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {confirmedPriceDetails && (
+            <div className="space-y-4">
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
+                <div className="text-sm font-medium">Item: {form.name}</div>
+                <div className="text-sm text-muted-foreground">Your Price: ₹{confirmedPriceDetails.price.toLocaleString()}</div>
+                <div className="text-sm text-muted-foreground">Starting Bid: ₹{Math.max(1, Math.floor(confirmedPriceDetails.price * 0.5)).toLocaleString()}</div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="auction-duration">Auction Duration</Label>
+                <Select value={auctionDuration} onValueChange={setAuctionDuration}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="24">24 Hours</SelectItem>
+                    <SelectItem value="48">48 Hours</SelectItem>
+                    <SelectItem value="72">3 Days</SelectItem>
+                    <SelectItem value="168">1 Week</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowAuctionDialog(false)}
+              disabled={creatingAuction}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                console.log("Create Auction button clicked!")
+                createAuction()
+              }}
+              disabled={creatingAuction}
+              className="bg-[#3e5f44] hover:bg-[#4a6e50]"
+            >
+              {creatingAuction ? "Creating..." : "Create Auction"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }

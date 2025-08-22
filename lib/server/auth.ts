@@ -23,27 +23,47 @@ export type Session = {
 }
 
 export async function signInWithPassword(email: string, password: string): Promise<Session | null> {
-  const user = await getUserByEmail(email)
-  if (!user || !user.passwordHash) return null
-  const hash = sha256(password)
-  if (hash !== user.passwordHash) return null
-  const session: Session = {
-    user: {
-      user_id: String(user._id),
-      name: user.name || "",
-      email: user.email,
-      role: user.role || "student",
-      department_id: user.department_id || null,
-    },
+  try {
+    if (!email || !password) {
+      console.error("Missing email or password")
+      return null
+    }
+
+    const user = await getUserByEmail(email)
+    if (!user || !user.passwordHash) {
+      console.error("User not found or no password hash")
+      return null
+    }
+    
+    const hash = sha256(password)
+    if (hash !== user.passwordHash) {
+      console.error("Password mismatch")
+      return null
+    }
+    
+    const session: Session = {
+      user: {
+        user_id: String(user._id),
+        name: user.name || "",
+        email: user.email,
+        role: user.role || "student",
+        department_id: user.department_id || null,
+      },
+    }
+    
+    const cookieStore = await cookies()
+    cookieStore.set(SESSION_COOKIE, JSON.stringify(session), {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    })
+    
+    return session
+  } catch (error) {
+    console.error("Error in signInWithPassword:", error)
+    return null
   }
-  const cookieStore = await cookies()
-  cookieStore.set(SESSION_COOKIE, JSON.stringify(session), {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30, // 30 days
-  })
-  return session
 }
 
 export async function signOut(): Promise<void> {
@@ -53,24 +73,51 @@ export async function signOut(): Promise<void> {
 }
 
 export async function getSession(): Promise<Session | null> {
-  const cookieStore = await cookies()
-  // Prefer Mongo-backed sessionId cookie
-  const sid = cookieStore.get(SESSION_ID_COOKIE)?.value
-  if (sid) {
-    const s = await getSessionById(sid)
-    if (s) {
-      // Load user details to include email and name
-      const u = await getUserById(String(s.userId)).catch(() => null as any)
-      return { user: { user_id: String(s.userId), name: u?.name || "", email: u?.email || "", role: (u?.role || s.role) as any, department_id: (u?.department_id ?? 0) as any } as any }
-    }
-  }
-  // Fallback to legacy JSON session cookie
-  const raw = cookieStore.get(SESSION_COOKIE)?.value
-  if (!raw) return null
   try {
-    const parsed = JSON.parse(raw) as Session
-    return parsed
-  } catch {
+    const cookieStore = await cookies()
+    
+    // Prefer Mongo-backed sessionId cookie
+    const sid = cookieStore.get(SESSION_ID_COOKIE)?.value
+    if (sid) {
+      try {
+        const s = await getSessionById(sid)
+        if (s) {
+          // Load user details to include email and name
+          const u = await getUserById(String(s.userId)).catch(() => null as any)
+          if (u) {
+            return { 
+              user: { 
+                user_id: String(s.userId), 
+                name: u.name || "", 
+                email: u.email || "", 
+                role: (u.role || s.role) as any, 
+                department_id: (u.department_id ?? 0) as any 
+              } as any 
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error getting session from database:", error)
+      }
+    }
+    
+    // Fallback to legacy JSON session cookie
+    const raw = cookieStore.get(SESSION_COOKIE)?.value
+    if (!raw) return null
+    
+    try {
+      const parsed = JSON.parse(raw) as Session
+      // Validate session structure
+      if (parsed?.user?.user_id && parsed?.user?.email) {
+        return parsed
+      }
+      return null
+    } catch (error) {
+      console.error("Error parsing session cookie:", error)
+      return null
+    }
+  } catch (error) {
+    console.error("Error in getSession:", error)
     return null
   }
 }

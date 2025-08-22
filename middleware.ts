@@ -18,26 +18,54 @@ export function middleware(req: NextRequest) {
     try {
       // Accept legacy JSON cookie or minimal {role} shape
       const session = JSON.parse(cookie) as { user?: { role?: string } }
-      if (pathname.startsWith("/admin") && session.user?.role === "admin") {
+      
+      // Ensure session and user exist
+      if (!session?.user?.role) {
+        const url = req.nextUrl.clone()
+        url.pathname = "/login"
+        return NextResponse.redirect(url)
+      }
+
+      const userRole = session.user.role
+      
+      // Admin routes - only admins
+      if (pathname.startsWith("/admin") && userRole === "admin") {
         return NextResponse.next()
       }
-      if (pathname.startsWith("/vendor") && (session.user?.role === "vendor" || session.user?.role === "admin")) {
+      
+      // Vendor routes - vendors and admins
+      if (pathname.startsWith("/vendor") && (userRole === "vendor" || userRole === "admin")) {
         return NextResponse.next()
       }
-      if (pathname.startsWith("/report") && (session.user?.role === "admin" || session.user?.role === "student" || session.user?.role === "coordinator")) {
+      
+      // Report routes - students, coordinators, and admins
+      if (pathname.startsWith("/report") && ["admin", "student", "coordinator"].includes(userRole)) {
         return NextResponse.next()
       }
-      if (pathname.startsWith("/item") && session.user?.role === "admin") {
+      
+      // Item routes - only admins
+      if (pathname.startsWith("/item") && userRole === "admin") {
         return NextResponse.next()
       }
 
-      // Not authorized
+      // Not authorized - redirect to appropriate login
       const url = req.nextUrl.clone()
-      url.pathname = "/login"
+      if (pathname.startsWith("/vendor")) {
+        url.pathname = "/login/vendor"
+      } else if (pathname.startsWith("/admin") || pathname.startsWith("/item")) {
+        url.pathname = "/login/admin"
+      } else if (pathname.startsWith("/report")) {
+        url.pathname = "/login/student"
+      } else {
+        url.pathname = "/login"
+      }
+      url.searchParams.set("error", "unauthorized")
       return NextResponse.redirect(url)
-    } catch {
+    } catch (error) {
+      console.error("Middleware session parsing error:", error)
       const url = req.nextUrl.clone()
       url.pathname = "/login"
+      url.searchParams.set("error", "session_invalid")
       return NextResponse.redirect(url)
     }
   }
