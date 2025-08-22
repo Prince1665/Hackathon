@@ -75,12 +75,9 @@ export default function VendorsPage() {
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                                            <Badge variant="secondary" className="text-xs">
-                            CPCB Authorized
-                          </Badge>
-                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                            🌱 Eco-Certified
-                          </Badge>
+                  <Badge variant="secondary" className="bg-[#9ac37e]/20 text-[#3e5f44]">
+                    {uniqueCompanies} compan{uniqueCompanies !== 1 ? 'ies' : 'y'}
+                  </Badge>
                   <Badge variant="secondary" className="bg-[#3e5f44]/20 text-[#3e5f44]">
                     {totalVendors} vendor{totalVendors !== 1 ? 's' : ''}
                   </Badge>

@@ -74,7 +74,7 @@ export function SchedulePickupDialog({
       <DialogTrigger asChild>
         <Button disabled={selectedIds.length === 0}>Schedule pickup</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Schedule pickup</DialogTitle>
           <DialogDescription>Select vendor and date for {selectedIds.length} item(s).</DialogDescription>
@@ -106,14 +106,7 @@ export function SchedulePickupDialog({
                   {date ? format(date, "PPP") : <span>Pick a date</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent 
-                className="w-auto p-0" 
-                align="start"
-                side="bottom"
-                sideOffset={8}
-                avoidCollisions={false}
-                sticky="always"
-              >
+              <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
                   selected={date}

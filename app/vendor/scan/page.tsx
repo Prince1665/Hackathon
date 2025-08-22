@@ -8,8 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Gavel } from "lucide-react"
-import Link from "next/link"
 // Import with error handling for browser environment
 import { BrowserQRCodeReader } from "@zxing/browser"
 
@@ -216,6 +214,8 @@ export default function VendorScanPage() {
       user_lifespan?: number; 
       reported_by: string; 
       reporter_email: string; 
+      price_source?: "ml" | "user";
+      predicted_price?: number;
     }> 
   }>>([])
 
@@ -438,6 +438,11 @@ export default function VendorScanPage() {
                                       <div>
                                         <span className="text-muted-foreground">Price:</span> 
                                         <span className="font-bold text-primary ml-1 text-base">₹{item.current_price.toLocaleString()}</span>
+                                        {item.price_source && (
+                                          <div className="text-xs text-muted-foreground mt-1">
+                                            {item.price_source === "ml" ? "🤖 ML Selected by Reporter" : "👤 Set by Reporter"}
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                   </div>

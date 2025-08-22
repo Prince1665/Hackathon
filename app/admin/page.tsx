@@ -18,9 +18,8 @@ import { Separator } from "@/components/ui/separator"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts"
 import { format } from "date-fns"
-import { CalendarIcon, Trash2, Gavel } from "lucide-react"
+import { CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
 type Item = {
   id: string
@@ -41,26 +40,12 @@ type Item = {
   original_price?: number
   used_duration?: number
   current_price?: number
-  price_source?: string
   predicted_price?: number
+  price_source?: "ml" | "user"
+  price_confirmed?: boolean
 }
 
 type Vendor = { id: string; company_name: string; contact_person: string; email: string; cpcb_registration_no: string }
-
-// Helper function for sustainability calculations
-function getItemWeight(category: string): number {
-  const weights: Record<string, number> = {
-    "Laptop": 2.5,
-    "Smartphone": 0.2,
-    "Tablet": 0.5,
-    "TV": 25,
-    "Refrigerator": 70,
-    "Washing Machine": 80,
-    "Air Conditioner": 50,
-    "Microwave": 15
-  }
-  return weights[category] || 2
-}
 
 export default function Page() {
   const router = useRouter()
@@ -73,10 +58,44 @@ export default function Page() {
   const displayCategory = (category: string) => {
     return category === "TV" ? "TV / Monitor" : category
   }
+  
+  // Helper function to display price with source information
+  const displayPrice = (item: Item) => {
+    if (!item.current_price && !item.predicted_price) return <div className="text-xs">₹0</div>;
+    
+    // Always show the current_price (which is the final confirmed price)
+    // But show different labels based on price_source
+    const price = item.current_price || 0;
+    const priceString = `₹${price.toLocaleString()}`;
+    
+    if (item.price_source === "ml") {
+      return (
+        <div className="text-right">
+          <div className="text-xs font-medium truncate">{priceString}</div>
+          <div className="text-[10px] text-blue-600 truncate">🤖 ML Selected</div>
+        </div>
+      );
+    } else if (item.price_source === "user") {
+      return (
+        <div className="text-right">
+          <div className="text-xs font-medium truncate">{priceString}</div>
+          <div className="text-[10px] text-green-600 truncate">👤 User Set</div>
+        </div>
+      );
+    } else {
+      // Fallback for items without price_source
+      return (
+        <div className="text-right">
+          <div className="text-xs font-medium truncate">{priceString}</div>
+          <div className="text-[10px] text-gray-600 truncate">💰 Price Set</div>
+        </div>
+      );
+    }
+  }
   const [disp, setDisp] = useState<string>("")
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [vendors, setVendors] = useState<Vendor[]>([])
-  const [adminPickups, setAdminPickups] = useState<Array<{ 
+    const [adminPickups, setAdminPickups] = useState<Array<{ 
     id: string; 
     scheduled_date: string; 
     status: string; 
@@ -92,122 +111,35 @@ export default function Page() {
   const [statusDist, setStatusDist] = useState<{ status: string; count: number; percentage: string }[]>([])
   const [dispositionDist, setDispositionDist] = useState<{ disposition: string; count: number; percentage: string }[]>([])
   const [itemsByDate, setItemsByDate] = useState<{ date: string; count: number; formattedDate: string }[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [deleteMode, setDeleteMode] = useState(false)
-  const [deletingItems, setDeletingItems] = useState(false)
 
   // Chart colors
   const CHART_COLORS = ['#3e5f44', '#9ac37e', '#6b8f71', '#a8d18a', '#4a6e50', '#7ca67f', '#8fb585']
 
   async function load() {
-    try {
-      const qs = new URLSearchParams()
-      if (status) qs.set("status", status)
-      if (category) qs.set("category", category)
-      if (disp) qs.set("disposition", disp as any)
-      
-      // Use parallel requests for better performance
-      const [itemsResponse, pickupsResponse] = await Promise.all([
-        fetch(`/api/items?${qs.toString()}`),
-        fetch("/api/admin/pickups")
-      ])
-      
-      if (!itemsResponse.ok) {
-        console.error('Failed to fetch items:', itemsResponse.status)
-        return
-      }
-      
-      const [itemsData, pickupsData] = await Promise.all([
-        itemsResponse.json(),
-        pickupsResponse.ok ? pickupsResponse.json() : []
-      ])
-      
-      // Handle items data
-      if (Array.isArray(itemsData)) {
-        setItems(itemsData)
-      } else if (itemsData.items && Array.isArray(itemsData.items)) {
-        setItems(itemsData.items)
-      } else {
-        console.error('Unexpected items API response format:', itemsData)
-        setItems([])
-      }
-      
-      // Handle pickups data
-      if (Array.isArray(pickupsData)) {
-        setAdminPickups(pickupsData)
-      }
-      
-    } catch (error) {
-      console.error('Error loading data:', error)
-      setItems([])
+    const qs = new URLSearchParams()
+    if (status) qs.set("status", status)
+    if (category) qs.set("category", category)
+    if (disp) qs.set("disposition", disp as any)
+    const res = await fetch(`/api/items?${qs.toString()}`)
+    setItems(await res.json())
+    
+    // Also reload pickups to get updated vendor responses
+    const pickupsRes = await fetch("/api/admin/pickups")
+    if (pickupsRes.ok) {
+      setAdminPickups(await pickupsRes.json())
     }
   }
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setError(null)
-        
-        // Phase 1: Load critical data immediately (show UI faster)
-        setIsLoading(true)
-        setIsLoadingAnalytics(true)
-        
-        const criticalDataPromises = [
-          fetch(`/api/items?${new URLSearchParams(status ? {status} : {}).toString()}`).then(async r => {
-            if (!r.ok) throw new Error('Failed to fetch items')
-            const data = await r.json()
-            const items = Array.isArray(data) ? data : (data.items || [])
-            setItems(items)
-            return items
-          }),
-          fetch("/api/vendors").then(async r => {
-            if (!r.ok) return []
-            const vendors = await r.json()
-            setVendors(Array.isArray(vendors) ? vendors : [])
-            return vendors
-          })
-        ]
-        
-        // Wait for critical data and immediately show the interface
-        await Promise.allSettled(criticalDataPromises)
-        setIsLoading(false) // Show interface with critical data
-        
-        // Phase 2: Load secondary data in background (analytics, pickups)
-        const secondaryPromises = [
-          fetch("/api/admin/pickups").then(async r => {
-            if (!r.ok) return []
-            const pickups = await r.json()
-            setAdminPickups(Array.isArray(pickups) ? pickups : [])
-            return pickups
-          }),
-          // Load analytics data in parallel chunks for better performance
-          Promise.all([
-            fetch("/api/analytics/volume-trends").then(r => r.ok ? r.json() : []).then(setVolumeTrends),
-            fetch("/api/analytics/category-distribution").then(r => r.ok ? r.json() : []).then(setCatDist),
-            fetch("/api/analytics/recovery-rate").then(r => r.ok ? r.json() : []).then(setRecovery)
-          ]),
-          Promise.all([
-            fetch("/api/analytics/status-distribution").then(r => r.ok ? r.json() : []).then(setStatusDist),
-            fetch("/api/analytics/disposition-distribution").then(r => r.ok ? r.json() : []).then(setDispositionDist),
-            fetch("/api/analytics/items-by-date").then(r => r.ok ? r.json() : []).then(setItemsByDate)
-          ])
-        ]
-        
-        // Load secondary data without blocking UI
-        await Promise.allSettled(secondaryPromises)
-        setIsLoadingAnalytics(false)
-        
-      } catch (error) {
-        console.error('Error loading admin dashboard:', error)
-        setError('Failed to load some dashboard data')
-        setIsLoading(false)
-        setIsLoadingAnalytics(false)
-      }
-    }
-    
-    fetchData()
+    load()
+    fetch("/api/vendors").then(async (r) => setVendors(await r.json()))
+    fetch("/api/admin/pickups").then(async (r) => setAdminPickups(await r.json()))
+    fetch("/api/analytics/volume-trends").then(async (r) => setVolumeTrends(await r.json()))
+    fetch("/api/analytics/category-distribution").then(async (r) => setCatDist(await r.json()))
+    fetch("/api/analytics/recovery-rate").then(async (r) => setRecovery(await r.json()))
+    fetch("/api/analytics/status-distribution").then(async (r) => setStatusDist(await r.json()))
+    fetch("/api/analytics/disposition-distribution").then(async (r) => setDispositionDist(await r.json()))
+    fetch("/api/analytics/items-by-date").then(async (r) => setItemsByDate(await r.json()))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -216,189 +148,24 @@ export default function Page() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, category, disp])
 
-  const handleDeleteItems = async (itemIds: string[]) => {
-    if (itemIds.length === 0) return
-
-    setDeletingItems(true)
-    try {
-      const response = await fetch('/api/items/delete', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ itemIds }),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete items')
-      }
-
-      // Clear selection and reload data
-      setSelected({})
-      setDeleteMode(false)
-      await load()
-
-    } catch (error) {
-      console.error('Error deleting items:', error)
-      setError(error instanceof Error ? error.message : 'Failed to delete items')
-    } finally {
-      setDeletingItems(false)
-    }
-  }
-
   const filtered = useMemo(() => {
-    let result = items
-    
-    // Apply status filter
-    if (status) {
-      result = result.filter(i => i.status === status)
-    }
-    
-    // Apply category filter  
-    if (category) {
-      result = result.filter(i => i.category === category)
-    }
-    
-    // Apply disposition filter
-    if (disp) {
-      result = result.filter(i => i.disposition === disp)
-    }
-    
-    // Apply search filter last (most expensive)
-    if (q) {
-      const qq = q.toLowerCase()
-      result = result.filter((i) => {
-        const searchText = `${i.name} ${i.description || ''} ${i.id} ${i.reported_by}`.toLowerCase()
-        return searchText.includes(qq)
-      })
-    }
-    
-    return result
-  }, [items, q, status, category, disp])
+    if (!q) return items
+    const qq = q.toLowerCase()
+    return items.filter((i) => [i.name, i.description, i.id, i.reported_by].filter(Boolean).join(" ").toLowerCase().includes(qq))
+  }, [items, q])
 
-  const selectable = useMemo(() => 
-    deleteMode 
-      ? filtered.filter((i) => i.status === "Collected" || i.status === "Safely Disposed")
-      : filtered.filter((i) => i.status === "Reported"), 
-    [filtered, deleteMode]
-  )
-
-  // Memoized environmental calculations
-  const environmentalMetrics = useMemo(() => {
-    const totalCO2 = Math.round(items.reduce((sum, item) => sum + (getItemWeight(item.category) * 2.1), 0))
-    const totalWeight = Math.round(items.reduce((sum, item) => sum + getItemWeight(item.category), 0))
-    const treesEquivalent = Math.round(totalCO2 / 22)
-    const energySaved = Math.round(totalWeight * 12)
-    const waterSaved = Math.round(totalWeight * 50)
-    
-    return { totalCO2, totalWeight, treesEquivalent, energySaved, waterSaved }
-  }, [items])
-
-  const communityMetrics = useMemo(() => {
-    const activeParticipants = new Set(items.map(item => item.reported_by).filter(Boolean)).size
-    const greenWarriors = Math.floor(activeParticipants * 0.3)
-    const activeStreaks = Math.floor(activeParticipants * 0.15) 
-    const hazardHeroes = Math.min(
-      items.filter(item => item.disposition === "Hazardous").length,
-      Math.floor(activeParticipants * 0.2)
-    )
-    
-    return { activeParticipants, greenWarriors, activeStreaks, hazardHeroes }
-  }, [items])
-
-  const classificationMetrics = useMemo(() => {
-    const reusableCount = items.filter(item => item.disposition === "Reusable").length
-    const recyclableCount = items.filter(item => item.disposition === "Recyclable").length
-    const hazardousCount = items.filter(item => item.disposition === "Hazardous").length
-    const sustainabilityScore = Math.round(
-      (reusableCount * 40 + recyclableCount * 25 + hazardousCount * 15) / (items.length || 1)
-    )
-    
-    return { reusableCount, recyclableCount, hazardousCount, sustainabilityScore }
-  }, [items])
+  const selectable = filtered.filter((i) => i.status === "Reported")
 
   const selectedIds = useMemo(() => Object.entries(selected).filter(([, v]) => v).map(([k]) => k), [selected])
-
-  // Loading and error states
-  if (isLoading) {
-    return (
-      <main className="min-h-screen bg-gradient-to-b from-[#9ac37e]/5 to-transparent">
-        <AppNav />
-        <section className="container mx-auto py-4 sm:py-8 space-y-4 sm:space-y-8 px-4 max-w-7xl">
-          {/* Fast skeleton loading */}
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-between items-start">
-            <div>
-              <div className="h-8 bg-gray-200 rounded w-48 mb-2 animate-pulse"></div>
-              <div className="h-4 bg-gray-200 rounded w-64 animate-pulse"></div>
-            </div>
-            <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
-          </div>
-          
-          {/* Quick stats skeleton */}
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {[1,2,3,4].map(i => (
-              <div key={i} className="bg-white border border-gray-200 rounded-lg p-6 animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-20 mb-2"></div>
-                <div className="h-8 bg-gray-200 rounded w-16"></div>
-              </div>
-            ))}
-          </div>
-          
-          {/* Table skeleton */}
-          <div className="bg-white border border-gray-200 rounded-lg">
-            <div className="p-6 border-b">
-              <div className="h-6 bg-gray-200 rounded w-32 mb-4 animate-pulse"></div>
-              <div className="flex gap-4">
-                <div className="h-10 bg-gray-200 rounded w-64 animate-pulse"></div>
-                <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
-                <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
-              </div>
-            </div>
-            <div className="p-6">
-              {[1,2,3,4,5].map(i => (
-                <div key={i} className="flex items-center gap-4 py-3 border-b border-gray-100 last:border-0">
-                  <div className="h-4 w-4 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 rounded w-32 animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
-                  <div className="h-6 bg-gray-200 rounded w-16 animate-pulse"></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      </main>
-    )
-  }
-
-  if (error) {
-    return (
-      <main className="min-h-screen bg-gradient-to-b from-[#9ac37e]/5 to-transparent">
-        <AppNav />
-        <section className="container mx-auto py-4 sm:py-8 space-y-4 sm:space-y-8 px-4 max-w-7xl">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="text-lg font-semibold text-red-600 mb-2">Error Loading Dashboard</div>
-              <div className="text-sm text-muted-foreground mb-4">{error}</div>
-              <Button onClick={() => window.location.reload()}>Retry</Button>
-            </div>
-          </div>
-        </section>
-      </main>
-    )
-  }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#9ac37e]/5 to-transparent">
       <AppNav />
       <section className="container mx-auto py-4 sm:py-8 space-y-4 sm:space-y-8 px-4 max-w-7xl">
         <Tabs defaultValue="items">
-          <TabsList className="grid w-full grid-cols-2 grid-rows-3 md:grid-cols-6 md:grid-rows-1 gap-2 sm:gap-3 p-2 sm:p-3 bg-[#9ac37e]/10 rounded-none border-2 border-[#3e5f44] h-auto">
+          <TabsList className="grid w-full grid-cols-2 grid-rows-3 md:grid-cols-5 md:grid-rows-1 gap-2 sm:gap-3 p-2 sm:p-3 bg-[#9ac37e]/10 rounded-none border-2 border-[#3e5f44] h-auto">
             <TabsTrigger value="items" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Items</TabsTrigger>
             <TabsTrigger value="pickups" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Pickups</TabsTrigger>
-            <TabsTrigger value="auctions" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Auctions</TabsTrigger>
             <TabsTrigger value="analytics" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Analytics</TabsTrigger>
             <TabsTrigger value="reports" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Reports</TabsTrigger>
             <TabsTrigger value="campaigns" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Campaigns</TabsTrigger>
@@ -447,129 +214,206 @@ export default function Page() {
                 <div className="flex justify-center">
                   <Button variant="outline" onClick={() => { setQ(""); setStatus(""); setCategory(""); setDisp(""); }} className="border-[#9ac37e]/30 text-[#3e5f44] hover:bg-[#9ac37e]/10 w-full sm:w-auto">Reset filters</Button>
                 </div>
-                
-                {/* Price Source Legend */}
-                <div className="bg-muted/30 border border-muted rounded-lg p-3">
-                  <div className="text-xs font-medium text-muted-foreground mb-2">Price Sources:</div>
-                  <div className="flex flex-wrap gap-4 text-xs">
-                    <div className="flex items-center gap-1">
-                      <span className="text-blue-500">🤖</span>
-                      <span>ML Predicted</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-purple-500">👤</span>
-                      <span>User Provided</span>
+                <div className="border rounded-md overflow-hidden">
+                  {/* Desktop table view */}
+                  <div className="hidden lg:block">
+                    <div className="overflow-x-auto overflow-y-auto max-h-[500px]">
+                      <table className="w-full min-w-[1400px] table-fixed border-separate border-spacing-0">
+                        <thead className="sticky top-0 bg-muted/50 border-b z-10">
+                          <tr>
+                            <th className="w-[50px] px-3 py-3 text-xs font-medium text-muted-foreground text-center border-r border-border/30"></th>
+                            <th className="w-[120px] px-3 py-3 text-xs font-medium text-muted-foreground text-left border-r border-border/30">ID</th>
+                            <th className="w-[200px] px-3 py-3 text-xs font-medium text-muted-foreground text-left border-r border-border/30">Name</th>
+                            <th className="w-[140px] px-3 py-3 text-xs font-medium text-muted-foreground text-left border-r border-border/30">Category</th>
+                            <th className="w-[120px] px-3 py-3 text-xs font-medium text-muted-foreground text-left border-r border-border/30">Disposition</th>
+                            <th className="w-[110px] px-3 py-3 text-xs font-medium text-muted-foreground text-left border-r border-border/30">Status</th>
+                            <th className="w-[100px] px-3 py-3 text-xs font-medium text-muted-foreground text-left border-r border-border/30">Reported</th>
+                            <th className="w-[110px] px-3 py-3 text-xs font-medium text-muted-foreground text-center border-r border-border/30">Build Quality</th>
+                            <th className="w-[100px] px-3 py-3 text-xs font-medium text-muted-foreground text-center border-r border-border/30">Lifespan</th>
+                            <th className="w-[100px] px-3 py-3 text-xs font-medium text-muted-foreground text-center border-r border-border/30">Usage</th>
+                            <th className="w-[100px] px-3 py-3 text-xs font-medium text-muted-foreground text-center border-r border-border/30">Condition</th>
+                            <th className="w-[140px] px-3 py-3 text-xs font-medium text-muted-foreground text-right">Price</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filtered.length === 0 ? (
+                            <tr>
+                              <td colSpan={12} className="text-center py-8 text-muted-foreground">
+                                No items found matching your filters.
+                              </td>
+                            </tr>
+                          ) : (
+                            filtered.map((i) => (
+                              <tr key={i.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                                <td className="w-[50px] px-3 py-3 text-center border-r border-border/30">
+                                  {i.status === "Reported" ? (
+                                    <Checkbox 
+                                      checked={!!selected[i.id]} 
+                                      onCheckedChange={(v) => setSelected((s) => ({ ...s, [i.id]: !!v }))} 
+                                      aria-label="Select row" 
+                                    />
+                                  ) : (
+                                    <div className="w-4 h-4" />
+                                  )}
+                                </td>
+                                <td className="w-[120px] px-3 py-3 border-r border-border/30">
+                                  <div className="text-xs text-muted-foreground font-mono truncate overflow-hidden" title={i.id}>
+                                    {i.id.slice(0, 10)}...
+                                  </div>
+                                </td>
+                                <td className="w-[200px] px-3 py-3 border-r border-border/30">
+                                  <div className="truncate font-medium text-sm overflow-hidden" title={i.name}>
+                                    {i.name}
+                                  </div>
+                                </td>
+                                <td className="w-[140px] px-3 py-3 border-r border-border/30">
+                                  <div className="flex">
+                                    <Badge variant="secondary" className="text-xs truncate max-w-full">
+                                      {displayCategory(i.category)}
+                                    </Badge>
+                                  </div>
+                                </td>
+                                <td className="w-[120px] px-3 py-3 border-r border-border/30">
+                                  <div className="flex">
+                                    {i.disposition ? (
+                                      <Badge variant="outline" className="text-xs truncate max-w-full">
+                                        {i.disposition}
+                                      </Badge>
+                                    ) : (
+                                      <span className="text-muted-foreground text-xs">—</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="w-[110px] px-3 py-3 border-r border-border/30">
+                                  <div className="flex">
+                                    <Badge className="text-xs truncate max-w-full">
+                                      {i.status}
+                                    </Badge>
+                                  </div>
+                                </td>
+                                <td className="w-[100px] px-3 py-3 border-r border-border/30">
+                                  <div className="text-xs overflow-hidden">
+                                    {new Date(i.reported_date).toLocaleDateString()}
+                                  </div>
+                                </td>
+                                <td className="w-[110px] px-3 py-3 text-center border-r border-border/30">
+                                  <div className="text-xs overflow-hidden">
+                                    {i.build_quality || "—"}
+                                  </div>
+                                </td>
+                                <td className="w-[100px] px-3 py-3 text-center border-r border-border/30">
+                                  <div className="text-xs overflow-hidden">
+                                    {i.user_lifespan ? `${i.user_lifespan}y` : "—"}
+                                  </div>
+                                </td>
+                                <td className="w-[100px] px-3 py-3 text-center border-r border-border/30">
+                                  <div className="text-xs overflow-hidden">
+                                    {i.usage_pattern || "—"}
+                                  </div>
+                                </td>
+                                <td className="w-[100px] px-3 py-3 text-center border-r border-border/30">
+                                  <div className="text-xs overflow-hidden">
+                                    {i.condition || "—"}
+                                  </div>
+                                </td>
+                                <td className="w-[140px] px-3 py-3 text-right">
+                                  <div className="overflow-hidden">
+                                    {displayPrice(i)}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
-                </div>
-                
-                <div className="border rounded-md overflow-hidden bg-background">
-                  {/* Desktop table view - Single scroll container */}
-                  <div className="hidden lg:block">
-                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
-                      <div className="min-w-[1400px]">
-                        <div className="grid grid-cols-[24px_180px_220px_140px_120px_100px_90px_90px_110px_90px_100px_110px_110px] gap-3 px-4 py-3 text-xs text-muted-foreground bg-muted/50 sticky top-0 z-10 font-medium">
-                          <div />
-                          <div>ID</div>
-                          <div>Name</div>
-                          <div>Category</div>
-                          <div>Disposition</div>
-                          <div>Status</div>
-                          <div>Reported</div>
-                          <div className="text-center">Build Quality</div>
-                          <div className="text-center">Expected Lifespan</div>
-                          <div className="text-center">Usage Pattern</div>
-                          <div className="text-center">Condition</div>
-                          <div className="text-right">Cost Price</div>
-                          <div className="text-right">Price (Source)</div>
+                  {/* Mobile card view */}
+                  <div className="lg:hidden">
+                    <div className="max-h-[420px] overflow-auto">
+                      {filtered.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          No items found matching your filters.
                         </div>
-                        <Separator />
-                        <div className="divide-y border-t">
+                      ) : (
+                        <div className="divide-y divide-border/50">
                           {filtered.map((i) => (
-                            <div key={i.id} className="grid grid-cols-[24px_180px_220px_140px_120px_100px_90px_90px_110px_90px_100px_110px_110px] gap-3 items-center px-4 py-4 text-sm hover:bg-muted/30 transition-colors border-b border-border/50">
-                              {(i.status === "Reported" && !deleteMode) || (deleteMode && (i.status === "Collected" || i.status === "Safely Disposed")) ? (
-                                <Checkbox checked={!!selected[i.id]} onCheckedChange={(v) => setSelected((s) => ({ ...s, [i.id]: !!v }))} aria-label="Select row" />
-                              ) : (
-                                <div className="w-6" />
-                              )}
-                              <div className="text-xs text-muted-foreground truncate pr-2">{i.id}</div>
-                              <div className="truncate font-medium pr-2" title={i.name}>{i.name}</div>
-                              <div className="flex justify-start"><Badge variant="secondary" className="whitespace-nowrap text-xs px-2 py-1 max-w-full truncate">{displayCategory(i.category)}</Badge></div>
-                              <div className="flex justify-start">{i.disposition ? <Badge variant="outline" className="whitespace-nowrap text-xs px-2 py-1 max-w-full truncate">{i.disposition}</Badge> : <span className="text-muted-foreground">—</span>}</div>
-                              <div className="flex justify-start"><Badge className="whitespace-nowrap text-xs px-2 py-1 max-w-full truncate">{i.status}</Badge></div>
-                              <div className="text-xs whitespace-nowrap text-muted-foreground">{new Date(i.reported_date).toLocaleDateString()}</div>
-                              <div className="text-center text-sm px-1">{i.build_quality || "—"}</div>
-                              <div className="text-center text-sm px-1">{i.user_lifespan ? `${i.user_lifespan}y` : "—"}</div>
-                              <div className="text-center text-sm px-1" title={i.usage_pattern}>{i.usage_pattern || "—"}</div>
-                              <div className="text-center text-sm px-1">{i.condition || "—"}</div>
-                              <div className="text-right text-sm px-1">{i.original_price ? `₹${i.original_price}` : "—"}</div>
-                              <div className="text-right text-sm font-semibold px-1 text-green-600">
-                                {i.price_source === "ml_predicted" && i.predicted_price ? (
-                                  <div className="flex flex-col items-end">
-                                    <span>₹{i.predicted_price}</span>
-                                    <span className="text-xs text-blue-500 font-normal">🤖 ML</span>
+                            <div key={i.id} className="p-4 space-y-3 hover:bg-muted/30 transition-colors">
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-start gap-3 flex-1">
+                                  {i.status === "Reported" ? (
+                                    <Checkbox 
+                                      checked={!!selected[i.id]} 
+                                      onCheckedChange={(v) => setSelected((s) => ({ ...s, [i.id]: !!v }))} 
+                                      aria-label="Select row"
+                                      className="mt-1"
+                                    />
+                                  ) : (
+                                    <div className="w-4 h-4 mt-1" />
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-sm truncate">{i.name}</div>
+                                    <div className="text-xs text-muted-foreground font-mono">
+                                      ID: {i.id.slice(0, 12)}...
+                                    </div>
                                   </div>
-                                ) : i.price_source === "user_provided" && i.current_price ? (
-                                  <div className="flex flex-col items-end">
-                                    <span>₹{i.current_price}</span>
-                                    <span className="text-xs text-purple-500 font-normal">👤 User</span>
-                                  </div>
-                                ) : (
-                                  <div className="flex flex-col items-end">
-                                    <span>₹{i.current_price || 0}</span>
-                                    <span className="text-xs text-blue-500 font-normal">🤖 ML</span>
-                                  </div>
+                                </div>
+                                <Badge className="ml-2 shrink-0">{i.status}</Badge>
+                              </div>
+                              
+                              <div className="flex flex-wrap gap-2">
+                                <Badge variant="secondary" className="text-xs">
+                                  {displayCategory(i.category)}
+                                </Badge>
+                                {i.disposition && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {i.disposition}
+                                  </Badge>
                                 )}
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Build Quality:</span>
+                                  <span className="font-medium">{i.build_quality || "—"}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Condition:</span>
+                                  <span className="font-medium">{i.condition || "—"}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Lifespan:</span>
+                                  <span className="font-medium">{i.user_lifespan ? `${i.user_lifespan}y` : "—"}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Usage:</span>
+                                  <span className="font-medium">{i.usage_pattern || "—"}</span>
+                                </div>
+                                <div className="flex justify-between col-span-2">
+                                  <span className="text-muted-foreground">Current Price:</span>
+                                  <div>
+                                    <div className="font-medium text-green-600">
+                                      {i.current_price ? `₹${i.current_price.toLocaleString()}` : "₹0"}
+                                    </div>
+                                    {i.price_source && (
+                                      <div className="text-xs text-right">
+                                        {i.price_source === "ml" ? "🤖 ML Selected" : "👤 User Set"}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="pt-2 border-t border-border/30">
+                                <div className="text-xs text-muted-foreground">
+                                  Reported: {new Date(i.reported_date).toLocaleDateString()}
+                                </div>
                               </div>
                             </div>
                           ))}
                         </div>
-                      </div>
+                      )}
                     </div>
-                  </div>
-                  {/* Mobile card view */}
-                  <div className="lg:hidden max-h-[500px] overflow-y-auto divide-y">
-                    {filtered.map((i) => (
-                      <div key={i.id} className="p-4 space-y-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            {(i.status === "Reported" && !deleteMode) || (deleteMode && (i.status === "Collected" || i.status === "Safely Disposed")) ? (
-                              <Checkbox checked={!!selected[i.id]} onCheckedChange={(v) => setSelected((s) => ({ ...s, [i.id]: !!v }))} aria-label="Select row" />
-                            ) : (
-                              <div className="w-6" />
-                            )}
-                            <div>
-                              <div className="font-medium">{i.name}</div>
-                              <div className="text-xs text-muted-foreground">{i.id}</div>
-                            </div>
-                          </div>
-                          <Badge>{i.status}</Badge>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="secondary">{displayCategory(i.category)}</Badge>
-                          {i.disposition && <Badge variant="outline">{i.disposition}</Badge>}
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div>Build Quality: {i.build_quality || "—"}</div>
-                          <div>Condition: {i.condition || "—"}</div>
-                          <div>Expected Lifespan: {i.user_lifespan ? `${i.user_lifespan}y` : "—"}</div>
-                          <div>Usage: {i.usage_pattern || "—"}</div>
-                          <div>Cost Price: {i.original_price ? `₹${i.original_price}` : "—"}</div>
-                          <div className="flex items-center gap-1">
-                            Price: {i.price_source === "ml_predicted" && i.predicted_price ? (
-                              <>₹{i.predicted_price} <span className="text-blue-500 text-xs">🤖</span></>
-                            ) : i.price_source === "user_provided" && i.current_price ? (
-                              <>₹{i.current_price} <span className="text-purple-500 text-xs">👤</span></>
-                            ) : (
-                              <>₹{i.current_price || 0} <span className="text-blue-500 text-xs">🤖</span></>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Reported: {new Date(i.reported_date).toLocaleDateString()}
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 </div>
               </CardContent>
@@ -578,97 +422,21 @@ export default function Page() {
             <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
               <CardHeader>
                 <CardTitle>Schedule pickup</CardTitle>
-                <CardDescription>
-                  {deleteMode 
-                    ? "Switch to normal mode to schedule pickups for reported items."
-                    : "Select items with status 'Reported' and assign a vendor."}
-                </CardDescription>
+                <CardDescription>Select items with status "Reported" and assign a vendor.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="text-sm text-muted-foreground">
                   Selected items: {selectedIds.length} / Eligible: {selectable.length}
                 </div>
-                {!deleteMode && (
-                  <SchedulePickupDialog
-                    items={selectable}
-                    selectedIds={selectedIds}
-                    vendors={vendors}
-                    onScheduled={async () => {
-                      setSelected({})
-                      await load()
-                    }}
-                  />
-                )}
-                {deleteMode && (
-                  <div className="text-sm text-muted-foreground italic">
-                    Pickup scheduling is disabled in delete mode.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="border-red-200 shadow-lg hover:shadow-xl transition-all duration-200">
-              <CardHeader>
-                <CardTitle className="text-red-700 flex items-center gap-2">
-                  <Trash2 className="h-5 w-5" />
-                  Delete Processed Items
-                </CardTitle>
-                <CardDescription>
-                  {deleteMode 
-                    ? "Select items with status 'Collected' or 'Safely Disposed' to permanently remove from database."
-                    : "Enable delete mode to remove completed items that are no longer needed."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-sm text-muted-foreground">
-                  {deleteMode 
-                    ? `Selected items: ${selectedIds.length} / Eligible: ${selectable.length}`
-                    : "Toggle delete mode to manage processed items"}
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant={deleteMode ? "outline" : "destructive"}
-                    size="sm"
-                    onClick={() => {
-                      setDeleteMode(!deleteMode)
-                      setSelected({})
-                    }}
-                    disabled={deletingItems}
-                  >
-                    {deleteMode ? "Cancel Delete Mode" : "Enable Delete Mode"}
-                  </Button>
-                  {deleteMode && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          disabled={selectedIds.length === 0 || deletingItems}
-                        >
-                          {deletingItems ? "Deleting..." : `Delete ${selectedIds.length} Items`}
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Confirm Permanent Deletion</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to permanently delete {selectedIds.length} processed items from the database? 
-                            This action cannot be undone and will remove all associated data including pickup records.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteItems(selectedIds)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Delete Permanently
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                </div>
+                <SchedulePickupDialog
+                  items={selectable}
+                  selectedIds={selectedIds}
+                  vendors={vendors}
+                  onScheduled={async () => {
+                    setSelected({})
+                    await load()
+                  }}
+                />
               </CardContent>
             </Card>
           </TabsContent>
@@ -807,87 +575,6 @@ export default function Page() {
               </CardContent>
             </Card>
 
-            {/* Enhanced Sustainability Analytics */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
-              <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
-                <CardHeader>
-                  <CardTitle className="text-[#3e5f44] flex items-center gap-2">
-                    🌍 Environmental Impact
-                  </CardTitle>
-                  <CardDescription>Real-time sustainability metrics</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="text-2xl font-bold text-green-600">
-                    {environmentalMetrics.totalCO2} kg
-                  </div>
-                  <div className="text-sm text-muted-foreground">CO₂ Emissions Prevented</div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>🌳 {environmentalMetrics.treesEquivalent} Trees</div>
-                    <div>⚡ {environmentalMetrics.energySaved} kWh</div>
-                    <div>💧 {environmentalMetrics.waterSaved}L Water</div>
-                    <div>♻️ {environmentalMetrics.totalWeight}kg Diverted</div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
-                <CardHeader>
-                  <CardTitle className="text-[#3e5f44] flex items-center gap-2">
-                    🏆 Community Engagement
-                  </CardTitle>
-                  <CardDescription>User participation & challenges</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {communityMetrics.activeParticipants}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Active Participants</div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center text-xs">
-                      <span>🌱 Green Warriors</span>
-                      <span className="font-semibold">{communityMetrics.greenWarriors}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span>♻️ Active Streaks</span>
-                      <span className="font-semibold">{communityMetrics.activeStreaks}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span>⚠️ Hazard Heroes</span>
-                      <span className="font-semibold">{communityMetrics.hazardHeroes}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
-                <CardHeader>
-                  <CardTitle className="text-[#3e5f44] flex items-center gap-2">
-                    🤖 Smart Classification
-                  </CardTitle>
-                  <CardDescription>AI-powered waste categorization</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="bg-green-50 rounded-lg p-2">
-                      <div className="text-lg font-bold text-green-600">{classificationMetrics.reusableCount}</div>
-                      <div className="text-xs text-green-700">Reusable</div>
-                    </div>
-                    <div className="bg-blue-50 rounded-lg p-2">
-                      <div className="text-lg font-bold text-blue-600">{classificationMetrics.recyclableCount}</div>
-                      <div className="text-xs text-blue-700">Recyclable</div>
-                    </div>
-                    <div className="bg-orange-50 rounded-lg p-2">
-                      <div className="text-lg font-bold text-orange-600">{classificationMetrics.hazardousCount}</div>
-                      <div className="text-xs text-orange-700">Hazardous</div>
-                    </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Sustainability Score: {classificationMetrics.sustainabilityScore}%
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
             <div className="grid lg:grid-cols-2 gap-4">
               {/* Category Distribution Chart */}
               <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
@@ -896,41 +583,32 @@ export default function Page() {
                   <CardDescription>Distribution by device type</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {catDist && catDist.length > 0 ? (
-                    <ChartContainer
-                      config={{
-                        count: {
-                          label: "Items",
-                        },
-                      }}
-                      className="h-[300px]"
-                    >
-                      <PieChart>
-                        <Pie
-                          data={catDist}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ category, count }) => `${category}: ${count}`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="count"
-                        >
-                          {catDist.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                      </PieChart>
-                    </ChartContainer>
-                  ) : (
-                    <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                      <div className="text-center">
-                        <div className="text-sm">No category data available</div>
-                        <div className="text-xs">Chart will appear when items are added</div>
-                      </div>
-                    </div>
-                  )}
+                  <ChartContainer
+                    config={{
+                      count: {
+                        label: "Items",
+                      },
+                    }}
+                    className="h-[300px]"
+                  >
+                    <PieChart>
+                      <Pie
+                        data={catDist}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ category, count }) => `${category}: ${count}`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="count"
+                      >
+                        {catDist.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </PieChart>
+                  </ChartContainer>
                 </CardContent>
               </Card>
 
@@ -941,37 +619,28 @@ export default function Page() {
                   <CardDescription>Current processing status of items</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {statusDist && statusDist.length > 0 ? (
-                    <ChartContainer
-                      config={{
-                        count: {
-                          label: "Items",
-                        },
-                      }}
-                      className="h-[300px]"
-                    >
-                      <BarChart data={statusDist}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="status" 
-                          fontSize={10}
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
-                        />
-                        <YAxis fontSize={12} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="count" fill="#3e5f44" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ChartContainer>
-                  ) : (
-                    <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                      <div className="text-center">
-                        <div className="text-sm">No status data available</div>
-                        <div className="text-xs">Chart will appear when items are processed</div>
-                      </div>
-                    </div>
-                  )}
+                  <ChartContainer
+                    config={{
+                      count: {
+                        label: "Items",
+                      },
+                    }}
+                    className="h-[300px]"
+                  >
+                    <BarChart data={statusDist}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="status" 
+                        fontSize={10}
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                      />
+                      <YAxis fontSize={12} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="count" fill="#3e5f44" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ChartContainer>
                 </CardContent>
               </Card>
             </div>
@@ -984,41 +653,32 @@ export default function Page() {
                   <CardDescription>Environmental handling classification</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {dispositionDist && dispositionDist.length > 0 ? (
-                    <ChartContainer
-                      config={{
-                        count: {
-                          label: "Items",
-                        },
-                      }}
-                      className="h-[300px]"
-                    >
-                      <PieChart>
-                        <Pie
-                          data={dispositionDist}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ disposition, percentage }) => `${disposition}: ${percentage}%`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="count"
-                        >
-                          {dispositionDist.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                      </PieChart>
-                    </ChartContainer>
-                  ) : (
-                    <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                      <div className="text-center">
-                        <div className="text-sm">No disposition data available</div>
-                        <div className="text-xs">Chart will appear when items are classified</div>
-                      </div>
-                    </div>
-                  )}
+                  <ChartContainer
+                    config={{
+                      count: {
+                        label: "Items",
+                      },
+                    }}
+                    className="h-[300px]"
+                  >
+                    <PieChart>
+                      <Pie
+                        data={dispositionDist}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ disposition, percentage }) => `${disposition}: ${percentage}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="count"
+                      >
+                        {dispositionDist.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </PieChart>
+                  </ChartContainer>
                 </CardContent>
               </Card>
 
@@ -1029,37 +689,28 @@ export default function Page() {
                   <CardDescription>Items reported over time</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {itemsByDate && itemsByDate.length > 0 ? (
-                    <ChartContainer
-                      config={{
-                        count: {
-                          label: "Items Reported",
-                        },
-                      }}
-                      className="h-[300px]"
-                    >
-                      <BarChart data={itemsByDate}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="formattedDate" 
-                          fontSize={10}
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
-                        />
-                        <YAxis fontSize={12} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="count" fill="#6b8f71" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ChartContainer>
-                  ) : (
-                    <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                      <div className="text-center">
-                        <div className="text-sm">No daily trends data available</div>
-                        <div className="text-xs">Chart will appear with reporting activity</div>
-                      </div>
-                    </div>
-                  )}
+                  <ChartContainer
+                    config={{
+                      count: {
+                        label: "Items Reported",
+                      },
+                    }}
+                    className="h-[300px]"
+                  >
+                    <BarChart data={itemsByDate}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="formattedDate" 
+                        fontSize={10}
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                      />
+                      <YAxis fontSize={12} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="count" fill="#6b8f71" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ChartContainer>
                 </CardContent>
               </Card>
             </div>
@@ -1071,107 +722,22 @@ export default function Page() {
                 <CardDescription>E-waste collection trends by month</CardDescription>
               </CardHeader>
               <CardContent>
-                {volumeTrends && volumeTrends.length > 0 ? (
-                  <ChartContainer
-                    config={{
-                      count: {
-                        label: "Items",
-                      },
-                    }}
-                    className="h-[300px]"
-                  >
-                    <BarChart data={volumeTrends}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" fontSize={12} />
-                      <YAxis fontSize={12} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="count" fill="#9ac37e" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ChartContainer>
-                ) : (
-                  <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <div className="text-sm">No volume trends data available</div>
-                      <div className="text-xs">Chart will appear with historical data</div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="auctions" className="space-y-4">
-            <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Gavel className="h-5 w-5 text-[#3e5f44]" />
-                  Auction Management
-                </CardTitle>
-                <CardDescription>Monitor and manage all auction activity across the platform</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <Card className="border-emerald-200">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">Active Auctions</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-emerald-600">
-                        Loading...
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="border-blue-200">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">Total Auction Value</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-blue-600">
-                        Loading...
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="border-purple-200">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">Recent Bids</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-purple-600">
-                        Loading...
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-                
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={() => window.open('/admin/auctions', '_blank')}
-                    className="bg-[#3e5f44] hover:bg-[#2d5016]"
-                  >
-                    View All Auctions
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={async () => {
-                      try {
-                        await fetch('/api/auctions/process-expired', { method: 'POST' })
-                        // Refresh page or show success message
-                      } catch (error) {
-                        console.error('Error processing expired auctions:', error)
-                      }
-                    }}
-                  >
-                    Process Expired Auctions
-                  </Button>
-                </div>
-                
-                <div className="text-sm text-muted-foreground">
-                  <p>• View and monitor all auction activity in real-time</p>
-                  <p>• Process expired auctions and notify winners</p>
-                  <p>• Track bidding patterns and auction performance</p>
-                </div>
+                <ChartContainer
+                  config={{
+                    count: {
+                      label: "Items",
+                    },
+                  }}
+                  className="h-[300px]"
+                >
+                  <BarChart data={volumeTrends}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" fontSize={12} />
+                    <YAxis fontSize={12} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="count" fill="#9ac37e" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ChartContainer>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1222,11 +788,11 @@ function ReportsSection() {
     const doc = new jsPDF()
     let yPosition = 20
 
-    // Helper function to add page if needed with better margin management
+    // Helper function to add page if needed
     const checkPageBreak = (requiredHeight: number) => {
-      if (yPosition + requiredHeight > 260) { // Further reduced to account for footer at 287
+      if (yPosition + requiredHeight > 280) {
         doc.addPage()
-        yPosition = 25 // Start lower on new pages for better spacing
+        yPosition = 20
       }
     }
 
@@ -1278,28 +844,20 @@ function ReportsSection() {
     doc.setFontSize(9)
     doc.setTextColor(0, 0, 0)
     doc.setFont("helvetica", "normal")
-    const summaryText = `This report presents a comprehensive analysis of e-waste management activities for the specified period, demonstrating compliance with Central Pollution Control Board (CPCB) regulations and E-Waste Management Rules 2016. The organization has processed ${summary.total} electronic items with a recovery rate of ${summary.environmentalImpact.recoveryRate}%, contributing to environmental sustainability through proper recycling and disposal practices.
-
-SUSTAINABILITY IMPACT: This period's e-waste management prevented ${summary.environmentalImpact.totalCO2Impact}kg CO2 emissions (equivalent to ${summary.environmentalImpact.treesEquivalent} trees), saved ${summary.environmentalImpact.energySavedKWh} kWh energy, conserved ${summary.environmentalImpact.waterSavedLiters}L water, and diverted ${summary.environmentalImpact.totalWeight}kg from landfills. Materials recovered: ${summary.environmentalImpact.metalsRecovered}kg metals, ${summary.environmentalImpact.plasticsRecovered}kg plastics, ${summary.environmentalImpact.rareearthRecovered}kg rare earth elements.`
+    const summaryText = `This report presents a comprehensive analysis of e-waste management activities for the specified period, demonstrating compliance with Central Pollution Control Board (CPCB) regulations and E-Waste Management Rules 2016. The organization has processed ${summary.total} electronic items with a recovery rate of ${summary.environmentalImpact.recoveryRate}%, contributing to environmental sustainability through proper recycling and disposal practices.`
     
     const splitSummary = doc.splitTextToSize(summaryText, 170)
     doc.text(splitSummary, 20, yPosition + 16)
     
-    yPosition += Math.max(45, splitSummary.length * 3 + 25) // Dynamic spacing based on summary length
+    yPosition += 45
 
     // Item Status Analysis
-    checkPageBreak(70) // Increased space requirement for table
-    
-    // Add section separator line
-    doc.setDrawColor(154, 195, 126)
-    doc.setLineWidth(0.5)
-    doc.line(14, yPosition - 5, 196, yPosition - 5)
-    
+    checkPageBreak(60)
     doc.setFontSize(14)
     doc.setFont("helvetica", "bold")
     doc.setTextColor(62, 95, 68)
     doc.text("Item Status Analysis", 14, yPosition)
-    yPosition += 15 // Increased spacing before table
+    yPosition += 10
     
     const statusData = Object.entries(summary.byStatus)
       .filter(([_, count]) => (count as number) > 0)
@@ -1319,12 +877,10 @@ SUSTAINABILITY IMPACT: This period's e-waste management prevented ${summary.envi
       headStyles: { 
         fillColor: [62, 95, 68],
         textColor: [255, 255, 255],
-        fontSize: 11,
+        fontSize: 10,
         fontStyle: 'bold'
       },
-      bodyStyles: { 
-        fontSize: 10
-      },
+      bodyStyles: { fontSize: 9 },
       alternateRowStyles: { fillColor: [245, 251, 247] },
       columnStyles: {
         0: { cellWidth: 45 },
@@ -1334,22 +890,16 @@ SUSTAINABILITY IMPACT: This period's e-waste management prevented ${summary.envi
       }
     })
     
-    // @ts-ignore - Get final Y position and add proper spacing
-    yPosition = doc.lastAutoTable.finalY + 20 // Increased spacing after table
+    // @ts-ignore
+    yPosition = doc.lastAutoTable.finalY + 15
 
     // Category Distribution
-    checkPageBreak(70) // Increased space requirement
-    
-    // Add section separator line
-    doc.setDrawColor(154, 195, 126)
-    doc.setLineWidth(0.5)
-    doc.line(14, yPosition - 5, 196, yPosition - 5)
-    
+    checkPageBreak(60)
     doc.setFontSize(14)
     doc.setFont("helvetica", "bold")
     doc.setTextColor(62, 95, 68)
     doc.text("Category Distribution", 14, yPosition)
-    yPosition += 15 // Consistent spacing
+    yPosition += 10
 
     const categoryData = Object.entries(summary.byCategory)
       .filter(([_, count]) => (count as number) > 0)
@@ -1382,22 +932,16 @@ SUSTAINABILITY IMPACT: This period's e-waste management prevented ${summary.envi
       }
     })
     
-    // @ts-ignore - Get final Y position and add proper spacing  
-    yPosition = doc.lastAutoTable.finalY + 20 // Increased spacing after table
+    // @ts-ignore
+    yPosition = doc.lastAutoTable.finalY + 15
 
     // Department-wise Analysis
-    checkPageBreak(70) // Increased space requirement
-    
-    // Add section separator line
-    doc.setDrawColor(154, 195, 126)
-    doc.setLineWidth(0.5)
-    doc.line(14, yPosition - 5, 196, yPosition - 5)
-    
+    checkPageBreak(60)
     doc.setFontSize(14)
     doc.setFont("helvetica", "bold")
     doc.setTextColor(62, 95, 68)
     doc.text("Department-wise Analysis", 14, yPosition)
-    yPosition += 15 // Consistent spacing
+    yPosition += 10
 
     const departmentData = Object.entries(summary.byDepartment)
       .filter(([_, count]) => (count as number) > 0)
@@ -1428,17 +972,11 @@ SUSTAINABILITY IMPACT: This period's e-waste management prevented ${summary.envi
       }
     })
     
-    // @ts-ignore - Get final Y position and add proper spacing
-    yPosition = doc.lastAutoTable.finalY + 20 // Increased spacing after table
+    // @ts-ignore
+    yPosition = doc.lastAutoTable.finalY + 15
 
     // Detailed Items List
-    checkPageBreak(90) // Increased space requirement for header
-    
-    // Add section separator line
-    doc.setDrawColor(154, 195, 126)
-    doc.setLineWidth(0.5)
-    doc.line(14, yPosition - 5, 196, yPosition - 5)
-    
+    checkPageBreak(80)
     doc.setFillColor(154, 195, 126)
     doc.rect(14, yPosition, 182, 8, 'F')
     
@@ -1446,7 +984,7 @@ SUSTAINABILITY IMPACT: This period's e-waste management prevented ${summary.envi
     doc.setFont("helvetica", "bold")
     doc.setTextColor(62, 95, 68)
     doc.text("Detailed Items List", 20, yPosition + 6)
-    yPosition += 18 // Increased spacing after header
+    yPosition += 15
 
     // Prepare items data for the table
     const itemsData = summary.items.map((item: any) => [
@@ -1460,7 +998,7 @@ SUSTAINABILITY IMPACT: This period's e-waste management prevented ${summary.envi
     ])
 
     // Split items into chunks if there are too many
-    const itemsPerPage = 20 // Reduced from 25 to prevent overcrowding
+    const itemsPerPage = 25
     const totalItems = itemsData.length
     
     if (totalItems > 0) {
@@ -1468,15 +1006,7 @@ SUSTAINABILITY IMPACT: This period's e-waste management prevented ${summary.envi
         const chunk = itemsData.slice(i, i + itemsPerPage)
         
         if (i > 0) {
-          checkPageBreak(120) // Ensure space for new table with header
-          // Add section header on new pages
-          doc.setFillColor(154, 195, 126)
-          doc.rect(14, yPosition, 182, 8, 'F')
-          doc.setFontSize(14)
-          doc.setFont("helvetica", "bold")
-          doc.setTextColor(62, 95, 68)
-          doc.text(`Detailed Items List (continued)`, 20, yPosition + 6)
-          yPosition += 18
+          checkPageBreak(100) // Ensure space for new table
         }
         
         // @ts-ignore
@@ -1504,15 +1034,13 @@ SUSTAINABILITY IMPACT: This period's e-waste management prevented ${summary.envi
           }
         })
         
-        // @ts-ignore - Get final Y position and add proper spacing
-        yPosition = doc.lastAutoTable.finalY + 15
+        // @ts-ignore
+        yPosition = doc.lastAutoTable.finalY + 10
         
-        // Add page break if there are more items and current page is getting full
+        // Add page break if there are more items
         if (i + itemsPerPage < totalItems) {
-          checkPageBreak(100) // Check if we need a new page
-          if (yPosition < 50) { // If we're on a new page after checkPageBreak
-            yPosition = 25 // Reset position for new page
-          }
+          doc.addPage()
+          yPosition = 20
         }
       }
     } else {
@@ -1623,14 +1151,7 @@ SUSTAINABILITY IMPACT: This period's e-waste management prevented ${summary.envi
                   {from ? format(from, "PPP") : <span>Pick a date</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent 
-                className="w-auto p-0" 
-                align="start"
-                side="bottom"
-                sideOffset={8}
-                avoidCollisions={false}
-                sticky="always"
-              >
+              <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
                   selected={from}
@@ -1662,14 +1183,7 @@ SUSTAINABILITY IMPACT: This period's e-waste management prevented ${summary.envi
                   {to ? format(to, "PPP") : <span>Pick a date</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent 
-                className="w-auto p-0" 
-                align="start"
-                side="bottom"
-                sideOffset={8}
-                avoidCollisions={false}
-                sticky="always"
-              >
+              <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
                   selected={to}
@@ -1785,14 +1299,7 @@ function CampaignsSection() {
                   {date ? format(date, "PPP") : <span>Pick a date</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent 
-                className="w-auto p-0" 
-                align="start"
-                side="bottom"
-                sideOffset={8}
-                avoidCollisions={false}
-                sticky="always"
-              >
+              <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
                   selected={date}

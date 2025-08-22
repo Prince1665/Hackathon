@@ -12,14 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { ChevronDown, Gavel, BarChart3, FileText, Package, Truck } from "lucide-react"
 
 type Role = "student" | "coordinator" | "admin" | "vendor"
 
@@ -39,12 +31,8 @@ export function AppNav({ className }: { className?: string }) {
     // Everyone can access the public homepage
     if (path === "/") return true
     if (role === "admin") return true
-    if (role === "vendor") return path.startsWith("/vendor") || path.startsWith("/auctions")
-    if (role === "student" || role === "coordinator") {
-      return path.startsWith("/report") || 
-             path.startsWith("/auctions/my-auctions") || 
-             path.startsWith("/item/")
-    }
+    if (role === "vendor") return path.startsWith("/vendor")
+    if (role === "student" || role === "coordinator") return path.startsWith("/report")
     return false
   }
 
@@ -60,131 +48,14 @@ export function AppNav({ className }: { className?: string }) {
 
   return (
     <header className={cn("w-full border-b bg-background", className)}>
-      <div className="container flex h-14 items-center justify-between gap-2 sm:gap-4 px-4">
-        <div className="flex items-center gap-4">
-          <a onClick={() => go("/")} className="font-semibold cursor-pointer text-center text-xs sm:text-sm md:text-base truncate">
-            SMART E WASTE MANAGEMENT SYSTEM
-          </a>
-          
-          {/* Role-based Navigation */}
-          {role && (
-            <nav className="hidden md:flex items-center gap-4">
-              {(role === "student" || role === "coordinator") && (
-                <>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-sm">
-                        Items <ChevronDown className="h-4 w-4 ml-1" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuItem onClick={() => go("/report")}>
-                        <Package className="h-4 w-4 mr-2" />
-                        Report Items
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => go("/item/track")}>
-                        <BarChart3 className="h-4 w-4 mr-2" />
-                        Track Items
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  
-                  <Button variant="ghost" size="sm" onClick={() => go("/auctions/my-auctions")}>
-                    <Gavel className="h-4 w-4 mr-2" />
-                    My Auctions
-                  </Button>
-                </>
-              )}
-              
-              {role === "vendor" && (
-                <>
-                  <Button variant="ghost" size="sm" onClick={() => go("/vendor/scan")}>
-                    <Truck className="h-4 w-4 mr-2" />
-                    Pickups
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => go("/vendor/auctions")}>
-                    <Gavel className="h-4 w-4 mr-2" />
-                    Auctions
-                  </Button>
-                </>
-              )}
-              
-              {role === "admin" && (
-                <>
-                  <Button variant="ghost" size="sm" onClick={() => go("/admin")}>
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    Dashboard
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => go("/admin/auctions")}>
-                    <Gavel className="h-4 w-4 mr-2" />
-                    Auctions
-                  </Button>
-                </>
-              )}
-            </nav>
-          )}
-        </div>
-        
-        <div className="flex items-center gap-1 sm:gap-2">
-          {/* Mobile Menu for smaller screens */}
-          {role && (
-            <div className="md:hidden">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    Menu <ChevronDown className="h-4 w-4 ml-1" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  {(role === "student" || role === "coordinator") && (
-                    <>
-                      <DropdownMenuItem onClick={() => go("/report")}>
-                        <Package className="h-4 w-4 mr-2" />
-                        Report Items
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => go("/auctions/my-auctions")}>
-                        <Gavel className="h-4 w-4 mr-2" />
-                        My Auctions
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-                  
-                  {role === "vendor" && (
-                    <>
-                      <DropdownMenuItem onClick={() => go("/vendor/scan")}>
-                        <Truck className="h-4 w-4 mr-2" />
-                        Pickups
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-                  
-                  {role === "admin" && (
-                    <>
-                      <DropdownMenuItem onClick={() => go("/admin")}>
-                        <BarChart3 className="h-4 w-4 mr-2" />
-                        Dashboard
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => go("/admin/auctions")}>
-                        <Gavel className="h-4 w-4 mr-2" />
-                        Auctions
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-                  
-                  <DropdownMenuItem onClick={onLogout}>
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
-          
+      <div className="container flex h-14 items-center justify-center gap-2 sm:gap-4 relative px-4">
+        <a onClick={() => go("/")} className="font-semibold cursor-pointer text-center text-xs sm:text-sm md:text-base truncate max-w-[60%] sm:max-w-none">
+          SMART E WASTE MANAGEMENT SYSTEM
+        </a>
+        <div className="absolute right-2 sm:right-4 flex items-center gap-1 sm:gap-2">
           <ThemeToggle />
           {role ? (
-            <Button size="sm" variant="ghost" onClick={onLogout} className="hidden md:block text-xs sm:text-sm px-2 sm:px-3">
+            <Button size="sm" variant="ghost" onClick={onLogout} className="text-xs sm:text-sm px-2 sm:px-3">
               Logout
             </Button>
           ) : (

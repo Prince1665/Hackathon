@@ -201,9 +201,6 @@ importers:
       '@types/node':
         specifier: ^22
         version: 22.17.1
-      '@types/qrcode':
-        specifier: ^1.5.5
-        version: 1.5.5
       '@types/react':
         specifier: ^19
         version: 19.1.9
@@ -1232,9 +1229,6 @@ packages:
 
   '@types/pg@8.15.5':
     resolution: {integrity: sha512-LF7lF6zWEKxuT3/OR8wAZGzkg4ENGXFNyiV/JeOt9z5B+0ZVwbql9McqX5c/WStFq1GaGso7H1AzP/qSzmlCKQ==}
-
-  '@types/qrcode@1.5.5':
-    resolution: {integrity: sha512-CdfBi/e3Qk+3Z/fXYShipBT13OJ2fDO2Q2w5CIP5anLTLIndQG9z6P1cnm+8zCWSpm5dnxMFd/uREtb0EXuQzg==}
 
   '@types/raf@3.4.3':
     resolution: {integrity: sha512-c4YAvMedbPZ5tEyxzQdMoOhhJ4RD3rngZIdwC2/qDN3d7JpEhB6fiBRKVY1lg5B7Wk+uPBjn5f39j1/2MY1oOw==}
@@ -3118,10 +3112,6 @@ snapshots:
       '@types/node': 22.17.1
       pg-protocol: 1.10.3
       pg-types: 2.2.0
-
-  '@types/qrcode@1.5.5':
-    dependencies:
-      '@types/node': 22.17.1
 
   '@types/raf@3.4.3':
     optional: true

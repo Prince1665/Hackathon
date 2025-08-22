@@ -6,54 +6,21 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     
-    // Validate required fields
-    if (!body || typeof body !== 'object') {
-      return NextResponse.json({ 
-        error: "Invalid request body",
-        status: "error" 
-      }, { status: 400 })
-    }
-    
-    // Validate numeric fields
-    const numericFields = ['original_price', 'used_duration', 'user_lifespan', 'condition', 'build_quality']
-    for (const field of numericFields) {
-      if (body[field] !== undefined && (typeof body[field] !== 'number' || isNaN(body[field]) || body[field] < 0)) {
-        return NextResponse.json({ 
-          error: `Invalid ${field}: must be a positive number`,
-          status: "error" 
-        }, { status: 400 })
-      }
-    }
-    
     // For now, we'll use a simple heuristic until Python model is set up
     // This can be replaced with actual Python model integration
     const predictedPrice = calculatePriceHeuristic(body)
     
-    if (!predictedPrice || isNaN(predictedPrice)) {
-      return NextResponse.json({ 
-        error: "Failed to calculate price prediction",
-        status: "error" 
-      }, { status: 500 })
-    }
-    
-    const originalPrice = body.original_price || 50000
-    const co2Savings = Math.round(originalPrice / 10000)
-    const refurbishmentSavings = Math.round(predictedPrice * 0.7)
-    
     return NextResponse.json({ 
       predicted_price: predictedPrice,
       status: "success",
-      sustainability_note: `Refurbishing this item could save ₹${refurbishmentSavings} compared to buying new, while preventing ${co2Savings}kg CO₂ emissions.`,
-      refurbishment_viability: predictedPrice > (originalPrice * 0.3) ? "High" : predictedPrice > (originalPrice * 0.15) ? "Medium" : "Low",
-      note: "Using heuristic calculation. Integrate Python ML model for better accuracy.",
-      confidence_score: Math.round(Math.min(95, 70 + (body.condition || 3) * 5)) // Mock confidence score
+      note: "Using heuristic calculation. Integrate Python ML model for better accuracy."
     })
   } catch (error) {
     console.error("Price prediction error:", error)
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : "Failed to predict price",
-      status: "error"
-    }, { status: 500 })
+    return NextResponse.json(
+      { error: "Failed to predict price" },
+      { status: 500 }
+    )
   }
 }
 
