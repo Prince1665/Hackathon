@@ -24,12 +24,20 @@ let connectPromise: Promise<MongoClient> | undefined = (() => {
 })()
 
 export async function getDb() {
-  if (!mongoClient) throw new Error("MongoDB not configured: set MONGODB_URI")
+  if (!mongoClient) {
+    console.warn("MongoDB not configured: set MONGODB_URI")
+    throw new Error("MongoDB not configured: set MONGODB_URI")
+  }
   // Always await the (cached) connect promise to ensure an active topology
   if (!connectPromise) {
     connectPromise = mongoClient.connect()
   }
-  await connectPromise
-  return mongoClient.db(dbName)
+  try {
+    await connectPromise
+    return mongoClient.db(dbName)
+  } catch (error) {
+    console.error("Failed to connect to MongoDB:", error)
+    throw error
+  }
 }
 

@@ -4,21 +4,24 @@ import { AppNav } from "@/components/app-nav"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { getSession } from "@/lib/server/auth"
-import { listCampaigns } from "@/lib/server/data-mongo"
+import { HomePageClient } from "./home-client"
 
 export default async function Page() {
-  const session = await getSession()
-  const campaigns = await listCampaigns()
-  const now = new Date()
-  const upcoming = campaigns
-    .filter((c) => {
-      const d = new Date(c.date)
-      // Only keep future or today
-      return d >= new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    })
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 6)
+  // Remove server-side session and campaigns to make this page static
+  // const session = await getSession()
+  // const campaigns = await listCampaigns()
+  // Remove server-side session and campaigns to make this page static
+  // const session = await getSession()
+  // const campaigns = await listCampaigns()
+  // const now = new Date()
+  // const upcoming = campaigns
+  //   .filter((c) => {
+  //     const d = new Date(c.date)
+  //     // Only keep future or today
+  //     return d >= new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  //   })
+  //   .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  //   .slice(0, 6)
   return (
     <main className="min-h-screen">
       <AppNav />
@@ -55,27 +58,8 @@ export default async function Page() {
               mobile devices, batteries, and accessories. Without awareness and proper tracking, much of it ends up in landfills.
             </p>
             
-            <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-3 sm:gap-4 pt-4 max-w-4xl mx-auto">
-              {!session ? (
-                <>
-                  <Button asChild className="bg-[#ff6b35] hover:bg-[#e55a2b] text-white border-0 px-6 py-3 text-sm sm:text-base font-semibold rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl w-full sm:w-auto">
-                    <Link href="/login">Login</Link>
-                  </Button>
-                  <Button asChild className="bg-[#9ac37e] hover:bg-[#8bb56f] text-white border-0 px-6 py-3 text-sm sm:text-base font-semibold rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl w-full sm:w-auto">
-                    <Link href="/signup">Sign Up</Link>
-                  </Button>
-                </>
-              ) : null}
-              <Button asChild className="bg-white/20 hover:bg-white/30 text-white border border-white/40 hover:border-white/60 px-6 py-3 text-sm sm:text-base font-medium rounded-lg transition-all duration-200 backdrop-blur-sm shadow-lg hover:shadow-xl w-full sm:w-auto">
-                <Link href="/report">Report an item</Link>
-              </Button>
-              <Button asChild className="bg-white/20 hover:bg-white/30 text-white border border-white/40 hover:border-white/60 px-6 py-3 text-sm sm:text-base font-medium rounded-lg transition-all duration-200 backdrop-blur-sm shadow-lg hover:shadow-xl w-full sm:w-auto">
-                <Link href="/admin">Admin Dashboard</Link>
-              </Button>
-              <Button asChild className="bg-white/20 hover:bg-white/30 text-white border border-white/40 hover:border-white/60 px-6 py-3 text-sm sm:text-base font-medium rounded-lg transition-all duration-200 backdrop-blur-sm shadow-lg hover:shadow-xl w-full sm:w-auto">
-                <Link href="/vendor/scan">Vendor Scan</Link>
-              </Button>
-            </div>
+            {/* Client-side session handling */}
+            <HomePageClient />
           </div>
         </div>
       </section>
@@ -83,30 +67,18 @@ export default async function Page() {
       {/* Content - optimized responsive grid */}
       <section className="container mx-auto py-8 md:py-12 lg:py-16 bg-gradient-to-b from-[#9ac37e]/10 to-transparent px-4 max-w-7xl">
         <div className="grid gap-4 md:gap-6 md:grid-cols-3">
-          {upcoming.length > 0 && (
-            <Card className="md:col-span-3 border-[#9ac37e]/20 shadow-md hover:shadow-lg transition-shadow duration-200">
-              <CardHeader className="bg-gradient-to-r from-[#9ac37e]/5 to-transparent">
-                <CardTitle className="text-[#3e5f44] text-lg md:text-xl font-bold">Upcoming campaigns</CardTitle>
-                <CardDescription className="text-[#3e5f44]/70 text-sm md:text-base">Open awareness drives and collection events visible to everyone.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 md:p-6">
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {upcoming.map((c) => (
-                    <div key={c.id} className="rounded-lg border border-[#9ac37e]/30 p-3 md:p-4 bg-gradient-to-br from-[#9ac37e]/5 to-transparent hover:from-[#9ac37e]/10 hover:to-[#9ac37e]/5 transition-all duration-200 hover:shadow-sm">
-                      <div className="text-xs md:text-sm text-[#3e5f44]/70 font-medium">{new Date(c.date).toLocaleDateString()}</div>
-                      <div className="font-semibold text-[#3e5f44] mt-1 text-sm md:text-base">{c.title}</div>
-                      {c.description ? (
-                        <div className="text-xs md:text-sm text-[#3e5f44]/60 line-clamp-3 mt-2">{c.description}</div>
-                      ) : null}
-                      <div className="text-xs text-[#3e5f44]/50 mt-2 flex items-center gap-1">
-                        🌱 <span>Join for sustainability rewards & impact tracking</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {/* Static campaigns placeholder - will be loaded client-side */}
+          <Card className="md:col-span-3 border-[#9ac37e]/20 shadow-md hover:shadow-lg transition-shadow duration-200">
+            <CardHeader className="bg-gradient-to-r from-[#9ac37e]/5 to-transparent">
+              <CardTitle className="text-[#3e5f44] text-lg md:text-xl font-bold">Upcoming campaigns</CardTitle>
+              <CardDescription className="text-[#3e5f44]/70 text-sm md:text-base">Open awareness drives and collection events visible to everyone.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 md:p-6">
+              <div className="text-center text-[#3e5f44]/70 py-8">
+                Loading campaigns...
+              </div>
+            </CardContent>
+          </Card>
 
           <Card className="md:col-span-1 border-[#9ac37e]/20 shadow-md hover:shadow-lg transition-all duration-200">
             <CardHeader className="bg-gradient-to-br from-[#9ac37e]/10 to-[#9ac37e]/5 p-4 md:p-6">

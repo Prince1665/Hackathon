@@ -98,6 +98,7 @@ export async function getSession(): Promise<Session | null> {
         }
       } catch (error) {
         console.error("Error getting session from database:", error)
+        // Don't throw, fallback to legacy session
       }
     }
     

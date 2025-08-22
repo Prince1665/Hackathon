@@ -148,16 +148,26 @@ async function predictCurrentPrice(itemData: any): Promise<number> {
 
 // Departments
 export async function listDepartments(): Promise<Department[]> {
-  const db = await getDb()
-  const rows = await db.collection("departments").find({}).project({ _id: 1, name: 1, location: 1 }).toArray()
-  return rows.map((d: any) => ({ id: typeof d._id === "number" ? d._id : Number(d._id), name: d.name, location: d.location }))
+  try {
+    const db = await getDb()
+    const rows = await db.collection("departments").find({}).project({ _id: 1, name: 1, location: 1 }).toArray()
+    return rows.map((d: any) => ({ id: typeof d._id === "number" ? d._id : Number(d._id), name: d.name, location: d.location }))
+  } catch (error) {
+    console.error("Error listing departments:", error)
+    return []
+  }
 }
 
 // Vendors
 export async function listVendors(): Promise<Vendor[]> {
-  const db = await getDb()
-  const rows = await db.collection("vendors").find({}).project({ _id: 1, company_name: 1, contact_person: 1, email: 1, cpcb_registration_no: 1 }).toArray()
-  return rows.map((v: any) => ({ id: String(v._id), company_name: v.company_name, contact_person: v.contact_person, email: v.email, cpcb_registration_no: v.cpcb_registration_no }))
+  try {
+    const db = await getDb()
+    const rows = await db.collection("vendors").find({}).project({ _id: 1, company_name: 1, contact_person: 1, email: 1, cpcb_registration_no: 1 }).toArray()
+    return rows.map((v: any) => ({ id: String(v._id), company_name: v.company_name, contact_person: v.contact_person, email: v.email, cpcb_registration_no: v.cpcb_registration_no }))
+  } catch (error) {
+    console.error("Error listing vendors:", error)
+    return []
+  }
 }
 
 // Items
@@ -553,20 +563,30 @@ export async function listAdminPickups(): Promise<Array<{
 
 // Campaigns
 export async function listCampaigns(): Promise<Campaign[]> {
-  const db = await getDb()
-  const rows = await db.collection("campaigns").find({})
-    .project({ _id: 1, title: 1, description: 1, date: 1, status: 1, department_id: 1 })
-    .sort({ date: -1 })
-    .toArray()
-  return rows.map((d: any) => mapId<Campaign>(d))
+  try {
+    const db = await getDb()
+    const rows = await db.collection("campaigns").find({})
+      .project({ _id: 1, title: 1, description: 1, date: 1, status: 1, department_id: 1 })
+      .sort({ date: -1 })
+      .toArray()
+    return rows.map((d: any) => mapId<Campaign>(d))
+  } catch (error) {
+    console.error("Error listing campaigns:", error)
+    return []
+  }
 }
 
 export async function createCampaign(input: { title: string; date: string; description?: string }): Promise<Campaign> {
-  const db = await getDb()
-  const id = randomUUID()
-  const doc = { _id: id, title: input.title, date: input.date, description: input.description || null }
-  await db.collection("campaigns").insertOne(doc as any)
-  return mapId<Campaign>(doc)
+  try {
+    const db = await getDb()
+    const id = randomUUID()
+    const doc = { _id: id, title: input.title, date: input.date, description: input.description || null }
+    await db.collection("campaigns").insertOne(doc as any)
+    return mapId<Campaign>(doc)
+  } catch (error) {
+    console.error("Error creating campaign:", error)
+    throw error
+  }
 }
 
 // Analytics
