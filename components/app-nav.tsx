@@ -48,18 +48,18 @@ export function AppNav({ className }: { className?: string }) {
 
   return (
     <header className={cn("w-full border-b bg-background", className)}>
-      <div className="container flex h-14 items-center justify-center gap-4 relative">
-        <a onClick={() => go("/")} className="font-semibold cursor-pointer">
+      <div className="container flex h-14 items-center justify-center gap-2 sm:gap-4 relative px-4">
+        <a onClick={() => go("/")} className="font-semibold cursor-pointer text-center text-xs sm:text-sm md:text-base truncate max-w-[60%] sm:max-w-none">
           SMART E WASTE MANAGEMENT SYSTEM
         </a>
-        <div className="absolute right-0 flex items-center gap-2">
+        <div className="absolute right-2 sm:right-4 flex items-center gap-1 sm:gap-2">
           <ThemeToggle />
           {role ? (
-            <Button size="sm" variant="ghost" onClick={onLogout}>
+            <Button size="sm" variant="ghost" onClick={onLogout} className="text-xs sm:text-sm px-2 sm:px-3">
               Logout
             </Button>
           ) : (
-            <Button asChild size="sm" className="bg-[#ff6b35] hover:bg-[#e55a2b] text-white">
+            <Button asChild size="sm" className="bg-[#ff6b35] hover:bg-[#e55a2b] text-white text-xs sm:text-sm px-2 sm:px-3">
               <a href="/login">Login</a>
             </Button>
           )}
@@ -67,11 +67,11 @@ export function AppNav({ className }: { className?: string }) {
       </div>
 
       <Dialog open={showBlocked} onOpenChange={setShowBlocked}>
-        <DialogContent>
+        <DialogContent className="w-[90vw] max-w-md">
           <DialogHeader>
             <DialogTitle>Feature unavailable</DialogTitle>
             <DialogDescription>
-              You don’t have access to this feature with your current role.
+              You don't have access to this feature with your current role.
             </DialogDescription>
           </DialogHeader>
         </DialogContent>

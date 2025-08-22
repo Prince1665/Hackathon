@@ -50,6 +50,11 @@ export default function Page() {
   const [q, setQ] = useState("")
   const [status, setStatus] = useState<string>("")
   const [category, setCategory] = useState<string>("")
+  
+  // Helper function to display category with better names
+  const displayCategory = (category: string) => {
+    return category === "TV" ? "TV / Monitor" : category
+  }
   const [disp, setDisp] = useState<string>("")
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [vendors, setVendors] = useState<Vendor[]>([])
@@ -117,29 +122,29 @@ export default function Page() {
   const selectedIds = useMemo(() => Object.entries(selected).filter(([, v]) => v).map(([k]) => k), [selected])
 
   return (
-    <main>
+    <main className="min-h-screen bg-gradient-to-b from-[#9ac37e]/5 to-transparent">
       <AppNav />
-      <section className="container py-4 sm:py-8 space-y-4 sm:space-y-8 bg-gradient-to-b from-[#9ac37e]/5 to-transparent min-h-screen px-4">
+      <section className="container mx-auto py-4 sm:py-8 space-y-4 sm:space-y-8 px-4 max-w-7xl">
         <Tabs defaultValue="items">
-          <TabsList className="grid w-full grid-cols-2 grid-rows-3 md:grid-cols-5 md:grid-rows-1 gap-3 p-3 bg-[#9ac37e]/10 rounded-none border-2 border-[#3e5f44] h-auto">
-            <TabsTrigger value="items" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-12 flex items-center justify-center">Items</TabsTrigger>
-            <TabsTrigger value="pickups" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-12 flex items-center justify-center">Pickups</TabsTrigger>
-            <TabsTrigger value="analytics" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-12 flex items-center justify-center">Analytics</TabsTrigger>
-            <TabsTrigger value="reports" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-12 flex items-center justify-center">Reports</TabsTrigger>
-            <TabsTrigger value="campaigns" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-12 flex items-center justify-center">Campaigns</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 grid-rows-3 md:grid-cols-5 md:grid-rows-1 gap-2 sm:gap-3 p-2 sm:p-3 bg-[#9ac37e]/10 rounded-none border-2 border-[#3e5f44] h-auto">
+            <TabsTrigger value="items" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Items</TabsTrigger>
+            <TabsTrigger value="pickups" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Pickups</TabsTrigger>
+            <TabsTrigger value="analytics" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Analytics</TabsTrigger>
+            <TabsTrigger value="reports" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Reports</TabsTrigger>
+            <TabsTrigger value="campaigns" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Campaigns</TabsTrigger>
           </TabsList>
 
           <TabsContent value="items" className="space-y-4">
             <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
               <CardHeader>
-                <CardTitle className="text-[#3e5f44] text-xl font-bold">All e‑waste items</CardTitle>
+                <CardTitle className="text-[#3e5f44] text-lg sm:text-xl font-bold">All e‑waste items</CardTitle>
                 <CardDescription className="text-[#3e5f44]/70">Search, filter and manage items.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Input placeholder="Search by name, id, reporter..." value={q} onChange={(e) => setQ(e.target.value)} className="sm:w-[280px]" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <Input placeholder="Search by name, id, reporter..." value={q} onChange={(e) => setQ(e.target.value)} className="w-full" />
                   <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Filter by status" /></SelectTrigger>
+                    <SelectTrigger className="w-full"><SelectValue placeholder="Filter by status" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Reported">Reported</SelectItem>
                       <SelectItem value="Scheduled">Scheduled</SelectItem>
@@ -148,7 +153,7 @@ export default function Page() {
                     </SelectContent>
                   </Select>
                   <Select value={disp} onValueChange={setDisp}>
-                    <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Filter by disposition" /></SelectTrigger>
+                    <SelectTrigger className="w-full"><SelectValue placeholder="Filter by disposition" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Recyclable">Recyclable</SelectItem>
                       <SelectItem value="Reusable">Reusable</SelectItem>
@@ -156,24 +161,26 @@ export default function Page() {
                     </SelectContent>
                   </Select>
                   <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Filter by category" /></SelectTrigger>
+                    <SelectTrigger className="w-full"><SelectValue placeholder="Filter by category" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Tablet">Tablet</SelectItem>
                       <SelectItem value="Microwave">Microwave</SelectItem>
                       <SelectItem value="Air Conditioner">Air Conditioner</SelectItem>
-                      <SelectItem value="TV">TV</SelectItem>
+                      <SelectItem value="TV">TV / Monitor</SelectItem>
                       <SelectItem value="Washing Machine">Washing Machine</SelectItem>
                       <SelectItem value="Laptop">Laptop</SelectItem>
                       <SelectItem value="Smartphone">Smartphone</SelectItem>
                       <SelectItem value="Refrigerator">Refrigerator</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button variant="outline" onClick={() => { setQ(""); setStatus(""); setCategory(""); setDisp(""); }} className="border-[#9ac37e]/30 text-[#3e5f44] hover:bg-[#9ac37e]/10">Reset filters</Button>
+                </div>
+                <div className="flex justify-center">
+                  <Button variant="outline" onClick={() => { setQ(""); setStatus(""); setCategory(""); setDisp(""); }} className="border-[#9ac37e]/30 text-[#3e5f44] hover:bg-[#9ac37e]/10 w-full sm:w-auto">Reset filters</Button>
                 </div>
                 <div className="border rounded-md overflow-hidden">
                   {/* Desktop table view */}
-                  <div className="hidden lg:block">
-                    <div className="grid grid-cols-[24px_150px_200px_100px_100px_80px_80px_80px_100px_80px_100px_100px_100px] gap-2 px-3 py-2 text-xs text-muted-foreground">
+                  <div className="hidden lg:block overflow-x-auto">
+                    <div className="grid grid-cols-[24px_120px_150px_100px_100px_80px_80px_80px_100px_80px_100px_100px_100px] gap-2 px-3 py-2 text-xs text-muted-foreground min-w-max">
                       <div />
                       <div>ID</div>
                       <div>Name</div>
@@ -182,11 +189,11 @@ export default function Page() {
                       <div>Status</div>
                       <div>Reported</div>
                       <div>Build Quality</div>
-                      <div>User Lifespan</div>
+                      <div>Expected Lifespan</div>
                       <div>Usage Pattern</div>
                       <div>Condition</div>
-                      <div>Original Price</div>
-                      <div>Current Price</div>
+                      <div>Cost Price</div>
+                      <div>Price</div>
                     </div>
                     <Separator />
                     <div className="max-h-[420px] overflow-auto divide-y">
@@ -199,7 +206,7 @@ export default function Page() {
                           )}
                           <div className="text-xs text-muted-foreground truncate">{i.id}</div>
                           <div className="truncate font-medium">{i.name}</div>
-                          <div><Badge variant="secondary">{i.category}</Badge></div>
+                          <div><Badge variant="secondary">{displayCategory(i.category)}</Badge></div>
                           <div>{i.disposition ? <Badge variant="outline">{i.disposition}</Badge> : <span className="text-muted-foreground">—</span>}</div>
                           <div><Badge>{i.status}</Badge></div>
                           <div className="text-xs">{new Date(i.reported_date).toLocaleDateString()}</div>
@@ -232,16 +239,16 @@ export default function Page() {
                           <Badge>{i.status}</Badge>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <Badge variant="secondary">{i.category}</Badge>
+                          <Badge variant="secondary">{displayCategory(i.category)}</Badge>
                           {i.disposition && <Badge variant="outline">{i.disposition}</Badge>}
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div>Build Quality: {i.build_quality || "—"}</div>
                           <div>Condition: {i.condition || "—"}</div>
-                          <div>User Lifespan: {i.user_lifespan ? `${i.user_lifespan}y` : "—"}</div>
+                          <div>Expected Lifespan: {i.user_lifespan ? `${i.user_lifespan}y` : "—"}</div>
                           <div>Usage: {i.usage_pattern || "—"}</div>
-                          <div>Original: {i.original_price ? `₹${i.original_price}` : "—"}</div>
-                          <div>Current: {i.current_price ? `₹${i.current_price}` : "₹0"}</div>
+                          <div>Cost Price: {i.original_price ? `₹${i.original_price}` : "—"}</div>
+                          <div>Price: {i.current_price ? `₹${i.current_price}` : "₹0"}</div>
                         </div>
                         <div className="text-xs text-muted-foreground">
                           Reported: {new Date(i.reported_date).toLocaleDateString()}
@@ -322,7 +329,7 @@ export default function Page() {
                             <div className="text-sm space-y-1">
                               {pickup.items.slice(0, 3).map((item) => (
                                 <div key={item.id}>
-                                  {item.name} <span className="text-muted-foreground">({item.category})</span>
+                                  {item.name} <span className="text-muted-foreground">({displayCategory(item.category)})</span>
                                 </div>
                               ))}
                               {pickup.items.length > 3 && (

@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     condition: validatePositiveNumber(body.condition),
     original_price: validatePositiveNumber(body.original_price),
     used_duration: validatePositiveNumber(body.used_duration),
-    current_price: 0, // Initialize to 0 since not provided in form
+    current_price: validatePositiveNumber(body.current_price) || 0, // Use provided current_price or default to 0
   })
   return NextResponse.json(item)
 }

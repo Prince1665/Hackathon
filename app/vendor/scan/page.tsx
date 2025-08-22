@@ -28,6 +28,11 @@ export default function VendorScanPage() {
   const codeReaderRef = useRef<any>(null)
   const streamRef = useRef<MediaStream | null>(null)
 
+  // Helper function to display category with better names
+  const displayCategory = (category: string) => {
+    return category === "TV" ? "TV / Monitor" : category
+  }
+
   useEffect(() => {
     // Initialize QR code reader only on client side
     if (typeof window !== 'undefined') {
@@ -259,11 +264,11 @@ export default function VendorScanPage() {
   }
 
   return (
-    <main>
+    <main className="min-h-screen bg-gradient-to-b from-[#9ac37e]/5 to-transparent">
       <AppNav />
-      <section className="container py-4 sm:py-8 grid gap-4 sm:gap-6 px-4">
+      <section className="container mx-auto py-4 sm:py-8 grid gap-4 sm:gap-6 px-4 max-w-4xl">
         <Tabs defaultValue="scan">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
             <TabsTrigger value="scan">Scan</TabsTrigger>
             <TabsTrigger value="scheduled" className="relative">
               Scheduled
@@ -274,24 +279,24 @@ export default function VendorScanPage() {
           </TabsList>
 
           <TabsContent value="scan" className="grid gap-6">
-            <Card>
+            <Card className="border-[#9ac37e]/20 shadow-lg">
               <CardHeader>
-                <CardTitle>Vendor QR Scan</CardTitle>
-                <CardDescription>Use device camera to scan item QR and update status.</CardDescription>
+                <CardTitle className="text-[#3e5f44] text-lg sm:text-xl">Vendor QR Scan</CardTitle>
+                <CardDescription className="text-[#3e5f44]/70">Use device camera to scan item QR and update status.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
-                <div className="grid gap-3 items-end">
+                <div className="grid gap-3">
                   <div className="grid gap-2">
-                    <Label htmlFor="manual">Manual item ID or QR URL (fallback)</Label>
-                    <Input id="manual" placeholder="Paste QR URL or Item ID" onChange={(e) => setResult(e.target.value)} value={result} />
+                    <Label htmlFor="manual" className="text-sm font-medium">Manual item ID or QR URL (fallback)</Label>
+                    <Input id="manual" placeholder="Paste QR URL or Item ID" onChange={(e) => setResult(e.target.value)} value={result} className="w-full" />
                   </div>
-                  <Button onClick={() => handleDecoded(result)} disabled={!result} className="w-full sm:w-auto">Lookup</Button>
+                  <Button onClick={() => handleDecoded(result)} disabled={!result} className="w-full">Lookup</Button>
                 </div>
                 <div className="grid gap-3">
-                  <div className="relative rounded border overflow-hidden bg-black/80 aspect-video">
+                  <div className="relative rounded border overflow-hidden bg-black/80 aspect-video w-full max-w-md mx-auto">
                     <video ref={videoRef} className="w-full h-full object-cover" muted autoPlay playsInline />
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
                     {!cameraReady ? (
                       <>
                         <Button onClick={startScan} className="flex-1 sm:flex-none">Start Camera</Button>
@@ -362,7 +367,7 @@ export default function VendorScanPage() {
                               <div key={item.id} className="bg-muted/50 rounded-lg p-3 space-y-2">
                                 <div className="flex items-center justify-between">
                                   <div className="font-medium">{item.name}</div>
-                                  <Badge variant="outline">{item.category}</Badge>
+                                  <Badge variant="outline">{displayCategory(item.category)}</Badge>
                                 </div>
                                 
                                 <div className="grid grid-cols-2 gap-2 text-sm">
@@ -388,12 +393,12 @@ export default function VendorScanPage() {
                                   )}
                                   {item.used_duration && (
                                     <div>
-                                      <span className="text-muted-foreground">Used:</span> {item.used_duration} years
+                                      <span className="text-muted-foreground">Usage Duration:</span> {item.used_duration} years
                                     </div>
                                   )}
                                   {item.user_lifespan && (
                                     <div>
-                                      <span className="text-muted-foreground">Lifespan:</span> {item.user_lifespan} years
+                                      <span className="text-muted-foreground">Expected Lifespan:</span> {item.user_lifespan} years
                                     </div>
                                   )}
                                 </div>
@@ -423,13 +428,13 @@ export default function VendorScanPage() {
                                   <div className="grid grid-cols-2 gap-2 text-sm">
                                     {item.original_price && (
                                       <div>
-                                        <span className="text-muted-foreground">Original Price:</span> 
+                                        <span className="text-muted-foreground">Cost Price:</span> 
                                         <span className="font-medium ml-1">₹{item.original_price.toLocaleString()}</span>
                                       </div>
                                     )}
                                     {item.current_price && (
                                       <div>
-                                        <span className="text-muted-foreground">Current Value:</span> 
+                                        <span className="text-muted-foreground">Price:</span> 
                                         <span className="font-bold text-primary ml-1 text-base">₹{item.current_price.toLocaleString()}</span>
                                       </div>
                                     )}

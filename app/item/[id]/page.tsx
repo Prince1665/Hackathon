@@ -39,6 +39,11 @@ export default function ItemDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [disposition, setDisposition] = useState<Item["disposition"] | null>(null)
 
+  // Helper function to display category with better names
+  const displayCategory = (category: string) => {
+    return category === "TV" ? "TV / Monitor" : category
+  }
+
   async function load() {
     setLoading(true)
     const res = await fetch(`/api/items/${params.id}`)
@@ -88,7 +93,7 @@ export default function ItemDetailsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-3">
                 <span>{item.name}</span>
-                <Badge variant="secondary">{item.category}</Badge>
+                <Badge variant="secondary">{displayCategory(item.category)}</Badge>
                 <Badge>{item.status}</Badge>
               </CardTitle>
               <CardDescription>Item ID: {item.id}</CardDescription>
