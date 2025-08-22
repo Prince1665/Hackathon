@@ -9,6 +9,7 @@ import { ObjectId } from "mongodb"
 export async function GET() {
   const session = await getSession()
   const userId = session?.user?.user_id || ""
+  
   if (!userId) return NextResponse.json([])
 
   // Resolve the vendor_id associated with this logged-in vendor user.
@@ -23,8 +24,8 @@ export async function GET() {
       const vendor = await db.collection("vendors").findOne({ email })
       if (vendor?._id) vendorId = String(vendor._id)
     }
-  } catch {
-    // ignore
+  } catch (error) {
+    console.log("Vendor pickups API - Error in vendor lookup:", error)
   }
 
   if (!vendorId) {

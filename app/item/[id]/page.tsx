@@ -14,13 +14,22 @@ type Item = {
   name: string
   description?: string
   status: string
-  category: "Laptop" | "Monitor" | "Battery" | "Other"
+  category: "Tablet" | "Microwave" | "Air Conditioner" | "TV" | "Washing Machine" | "Laptop" | "Smartphone" | "Refrigerator"
   department_id: number
   reported_by: string
   reported_date: string
   disposed_date?: string | null
   qr_code_url: string
   disposition?: "Recyclable" | "Reusable" | "Hazardous" | null
+  brand?: string
+  build_quality?: number
+  user_lifespan?: number
+  usage_pattern?: "Light" | "Moderate" | "Heavy"
+  expiry_years?: number
+  condition?: number
+  original_price?: number
+  used_duration?: number
+  current_price?: number
 }
 
 export default function ItemDetailsPage() {

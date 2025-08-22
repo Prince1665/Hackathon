@@ -26,7 +26,7 @@ create table if not exists ewaste_items (
   item_id uuid primary key,
   name text not null,
   description text,
-  category text not null check (category in ('Laptop','Monitor','Battery','Other')),
+  category text not null check (category in ('Tablet','Microwave','Air Conditioner','TV','Washing Machine','Laptop','Smartphone','Refrigerator')),
   status text not null check (status in ('Reported','Awaiting Pickup','Scheduled','Collected','Recycled','Refurbished','Safely Disposed')),
   reported_by_user_id text not null,
   department_id int references departments(department_id),

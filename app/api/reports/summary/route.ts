@@ -29,10 +29,14 @@ export async function GET(req: NextRequest) {
     "Safely Disposed": 0,
   }
   const byCategory: Record<ItemCategory, number> = {
+    Tablet: 0,
+    Microwave: 0,
+    "Air Conditioner": 0,
+    TV: 0,
+    "Washing Machine": 0,
     Laptop: 0,
-    Monitor: 0,
-    Battery: 0,
-    Other: 0,
+    Smartphone: 0,
+    Refrigerator: 0,
   }
   const byDisposition: Record<string, number> = {
     Recyclable: 0,

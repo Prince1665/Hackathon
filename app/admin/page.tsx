@@ -11,21 +11,35 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SchedulePickupDialog } from "@/components/schedule-pickup-dialog"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts"
+import { format } from "date-fns"
+import { CalendarIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 type Item = {
   id: string
   name: string
   description?: string
-  category: "Laptop" | "Monitor" | "Battery" | "Other"
+  category: "Tablet" | "Microwave" | "Air Conditioner" | "TV" | "Washing Machine" | "Laptop" | "Smartphone" | "Refrigerator"
   status: string
   department_id: number
   reported_by: string
   reported_date: string
   disposition?: "Recyclable" | "Reusable" | "Hazardous" | null
+  brand?: string
+  build_quality?: number
+  user_lifespan?: number
+  usage_pattern?: "Light" | "Moderate" | "Heavy"
+  expiry_years?: number
+  condition?: number
+  original_price?: number
+  used_duration?: number
+  current_price?: number
 }
 
 type Vendor = { id: string; company_name: string; contact_person: string; email: string; cpcb_registration_no: string }
@@ -39,6 +53,16 @@ export default function Page() {
   const [disp, setDisp] = useState<string>("")
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [vendors, setVendors] = useState<Vendor[]>([])
+    const [adminPickups, setAdminPickups] = useState<Array<{ 
+    id: string; 
+    scheduled_date: string; 
+    status: string; 
+    vendor_response?: string | null; 
+    vendor_response_date?: string | null;
+    vendor_response_note?: string | null;
+    vendor: { name: string; company: string; email: string; cpcb_registration_no: string };
+    items: Array<{ id: string; name: string; category: "Tablet" | "Microwave" | "Air Conditioner" | "TV" | "Washing Machine" | "Laptop" | "Smartphone" | "Refrigerator" }> 
+  }>>([])
   const [volumeTrends, setVolumeTrends] = useState<{ month: string; count: number }[]>([])
   const [catDist, setCatDist] = useState<{ category: string; count: number }[]>([])
   const [recovery, setRecovery] = useState<{ rate: number; recycled: number; disposed: number } | null>(null)
@@ -56,11 +80,18 @@ export default function Page() {
     if (disp) qs.set("disposition", disp as any)
     const res = await fetch(`/api/items?${qs.toString()}`)
     setItems(await res.json())
+    
+    // Also reload pickups to get updated vendor responses
+    const pickupsRes = await fetch("/api/admin/pickups")
+    if (pickupsRes.ok) {
+      setAdminPickups(await pickupsRes.json())
+    }
   }
 
   useEffect(() => {
     load()
     fetch("/api/vendors").then(async (r) => setVendors(await r.json()))
+    fetch("/api/admin/pickups").then(async (r) => setAdminPickups(await r.json()))
     fetch("/api/analytics/volume-trends").then(async (r) => setVolumeTrends(await r.json()))
     fetch("/api/analytics/category-distribution").then(async (r) => setCatDist(await r.json()))
     fetch("/api/analytics/recovery-rate").then(async (r) => setRecovery(await r.json()))
@@ -90,8 +121,9 @@ export default function Page() {
       <AppNav />
       <section className="container py-4 sm:py-8 space-y-4 sm:space-y-8 bg-gradient-to-b from-[#9ac37e]/5 to-transparent min-h-screen px-4">
         <Tabs defaultValue="items">
-          <TabsList className="grid w-full grid-cols-2 grid-rows-2 md:grid-cols-4 md:grid-rows-1 gap-3 p-3 bg-[#9ac37e]/10 rounded-none border-2 border-[#3e5f44] h-auto">
+          <TabsList className="grid w-full grid-cols-2 grid-rows-3 md:grid-cols-5 md:grid-rows-1 gap-3 p-3 bg-[#9ac37e]/10 rounded-none border-2 border-[#3e5f44] h-auto">
             <TabsTrigger value="items" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-12 flex items-center justify-center">Items</TabsTrigger>
+            <TabsTrigger value="pickups" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-12 flex items-center justify-center">Pickups</TabsTrigger>
             <TabsTrigger value="analytics" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-12 flex items-center justify-center">Analytics</TabsTrigger>
             <TabsTrigger value="reports" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-12 flex items-center justify-center">Reports</TabsTrigger>
             <TabsTrigger value="campaigns" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-12 flex items-center justify-center">Campaigns</TabsTrigger>
@@ -126,18 +158,22 @@ export default function Page() {
                   <Select value={category} onValueChange={setCategory}>
                     <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Filter by category" /></SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="Tablet">Tablet</SelectItem>
+                      <SelectItem value="Microwave">Microwave</SelectItem>
+                      <SelectItem value="Air Conditioner">Air Conditioner</SelectItem>
+                      <SelectItem value="TV">TV</SelectItem>
+                      <SelectItem value="Washing Machine">Washing Machine</SelectItem>
                       <SelectItem value="Laptop">Laptop</SelectItem>
-                      <SelectItem value="Monitor">Monitor</SelectItem>
-                      <SelectItem value="Battery">Battery</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
+                      <SelectItem value="Smartphone">Smartphone</SelectItem>
+                      <SelectItem value="Refrigerator">Refrigerator</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button variant="outline" onClick={() => { setQ(""); setStatus(""); setCategory(""); setDisp(""); }} className="border-[#9ac37e]/30 text-[#3e5f44] hover:bg-[#9ac37e]/10">Reset filters</Button>
                 </div>
                 <div className="border rounded-md overflow-hidden">
                   {/* Desktop table view */}
-                  <div className="hidden md:block">
-                    <div className="grid grid-cols-[24px_200px_1fr_120px_140px_120px_120px] gap-3 px-3 py-2 text-xs text-muted-foreground">
+                  <div className="hidden lg:block">
+                    <div className="grid grid-cols-[24px_150px_200px_100px_100px_80px_80px_80px_100px_80px_100px_100px_100px] gap-2 px-3 py-2 text-xs text-muted-foreground">
                       <div />
                       <div>ID</div>
                       <div>Name</div>
@@ -145,11 +181,17 @@ export default function Page() {
                       <div>Disposition</div>
                       <div>Status</div>
                       <div>Reported</div>
+                      <div>Build Quality</div>
+                      <div>User Lifespan</div>
+                      <div>Usage Pattern</div>
+                      <div>Condition</div>
+                      <div>Original Price</div>
+                      <div>Current Price</div>
                     </div>
                     <Separator />
                     <div className="max-h-[420px] overflow-auto divide-y">
                       {filtered.map((i) => (
-                        <div key={i.id} className="grid grid-cols-[24px_200px_1fr_120px_140px_120px_120px] gap-3 items-center px-3 py-3">
+                        <div key={i.id} className="grid grid-cols-[24px_150px_200px_100px_100px_80px_80px_80px_100px_80px_100px_100px_100px] gap-2 items-center px-3 py-3 text-sm">
                           {i.status === "Reported" ? (
                             <Checkbox checked={!!selected[i.id]} onCheckedChange={(v) => setSelected((s) => ({ ...s, [i.id]: !!v }))} aria-label="Select row" />
                           ) : (
@@ -161,14 +203,20 @@ export default function Page() {
                           <div>{i.disposition ? <Badge variant="outline">{i.disposition}</Badge> : <span className="text-muted-foreground">—</span>}</div>
                           <div><Badge>{i.status}</Badge></div>
                           <div className="text-xs">{new Date(i.reported_date).toLocaleDateString()}</div>
+                          <div className="text-center">{i.build_quality || "—"}</div>
+                          <div className="text-center">{i.user_lifespan ? `${i.user_lifespan}y` : "—"}</div>
+                          <div className="text-center">{i.usage_pattern || "—"}</div>
+                          <div className="text-center">{i.condition || "—"}</div>
+                          <div className="text-right">{i.original_price ? `₹${i.original_price}` : "—"}</div>
+                          <div className="text-right">{i.current_price ? `₹${i.current_price}` : "₹0"}</div>
                         </div>
                       ))}
                     </div>
                   </div>
                   {/* Mobile card view */}
-                  <div className="md:hidden max-h-[420px] overflow-auto divide-y">
+                  <div className="lg:hidden max-h-[420px] overflow-auto divide-y">
                     {filtered.map((i) => (
-                      <div key={i.id} className="p-4 space-y-2">
+                      <div key={i.id} className="p-4 space-y-3">
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-2">
                             {i.status === "Reported" ? (
@@ -186,6 +234,14 @@ export default function Page() {
                         <div className="flex flex-wrap gap-2">
                           <Badge variant="secondary">{i.category}</Badge>
                           {i.disposition && <Badge variant="outline">{i.disposition}</Badge>}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>Build Quality: {i.build_quality || "—"}</div>
+                          <div>Condition: {i.condition || "—"}</div>
+                          <div>User Lifespan: {i.user_lifespan ? `${i.user_lifespan}y` : "—"}</div>
+                          <div>Usage: {i.usage_pattern || "—"}</div>
+                          <div>Original: {i.original_price ? `₹${i.original_price}` : "—"}</div>
+                          <div>Current: {i.current_price ? `₹${i.current_price}` : "₹0"}</div>
                         </div>
                         <div className="text-xs text-muted-foreground">
                           Reported: {new Date(i.reported_date).toLocaleDateString()}
@@ -215,6 +271,112 @@ export default function Page() {
                     await load()
                   }}
                 />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="pickups" className="space-y-4">
+            <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
+              <CardHeader>
+                <CardTitle>Pickup Management</CardTitle>
+                <CardDescription>Monitor scheduled pickups and vendor responses.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {adminPickups.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">No pickups scheduled.</div>
+                ) : (
+                  <div className="space-y-4">
+                    {adminPickups.map((pickup) => (
+                      <div key={pickup.id} className="border rounded-lg p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium">Pickup #{pickup.id.slice(0, 8)}</div>
+                            <div className="text-sm text-muted-foreground">
+                              Scheduled: {new Date(pickup.scheduled_date).toLocaleDateString()}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={
+                              pickup.status === "Vendor_Accepted" ? "default" : 
+                              pickup.status === "Vendor_Rejected" ? "destructive" : 
+                              "secondary"
+                            }>
+                              {pickup.status.replace("_", " ")}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <div className="text-sm font-medium mb-2">Vendor Information</div>
+                            <div className="text-sm space-y-1">
+                              <div><span className="font-medium">Company:</span> {pickup.vendor.company}</div>
+                              <div><span className="font-medium">Contact Person:</span> {pickup.vendor.name}</div>
+                              <div><span className="font-medium">Email:</span> {pickup.vendor.email}</div>
+                              <div><span className="font-medium">CPCB Registration:</span> {pickup.vendor.cpcb_registration_no}</div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-sm font-medium mb-2">Items ({pickup.items.length})</div>
+                            <div className="text-sm space-y-1">
+                              {pickup.items.slice(0, 3).map((item) => (
+                                <div key={item.id}>
+                                  {item.name} <span className="text-muted-foreground">({item.category})</span>
+                                </div>
+                              ))}
+                              {pickup.items.length > 3 && (
+                                <div className="text-muted-foreground">
+                                  +{pickup.items.length - 3} more items
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Vendor Response Section */}
+                        {pickup.vendor_response && (
+                          <div className={`rounded-lg p-3 border-l-4 ${
+                            pickup.vendor_response === "Accepted" 
+                              ? "bg-green-50 border-green-400 border-l-green-400" 
+                              : "bg-red-50 border-red-400 border-l-red-400"
+                          }`}>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className={`font-medium ${
+                                pickup.vendor_response === "Accepted" ? "text-green-700" : "text-red-700"
+                              }`}>
+                                Vendor Response: {pickup.vendor_response}
+                              </div>
+                              {pickup.vendor_response_date && (
+                                <div className="text-xs text-muted-foreground">
+                                  {new Date(pickup.vendor_response_date).toLocaleString()}
+                                </div>
+                              )}
+                            </div>
+                            {pickup.vendor_response_note && (
+                              <div className="text-sm text-muted-foreground mb-2">
+                                <span className="font-medium">Note:</span> {pickup.vendor_response_note}
+                              </div>
+                            )}
+                            {pickup.vendor_response === "Rejected" && (
+                              <div className="text-xs text-blue-600 bg-blue-50 rounded px-2 py-1 border border-blue-200">
+                                💡 Items from this rejected pickup are now available for rescheduling in the Items tab
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {!pickup.vendor_response && pickup.status === "Scheduled" && (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                            <div className="text-sm text-yellow-700">
+                              ⏳ Awaiting vendor response
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -428,13 +590,28 @@ export default function Page() {
 }
 
 function ReportsSection() {
-  const [from, setFrom] = useState("")
-  const [to, setTo] = useState("")
+  const [from, setFrom] = useState<Date>()
+  const [to, setTo] = useState<Date>()
+
+  // Get current date and calculate year range dynamically
+  const currentDate = new Date()
+  const currentYear = currentDate.getFullYear()
+  const today = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()) // Today at 00:00:00
+  const maxDate = new Date(currentYear + 2, 11, 31) // End of year + 2 years
+
+  // Custom setter for "from" date that clears "to" date if it becomes invalid
+  const handleFromDateChange = (newFromDate: Date | undefined) => {
+    setFrom(newFromDate)
+    // If "to" date is before the new "from" date, clear it
+    if (newFromDate && to && to < newFromDate) {
+      setTo(undefined)
+    }
+  }
 
   async function downloadPdf() {
     const qs = new URLSearchParams()
-    if (from) qs.set("from", from)
-    if (to) qs.set("to", to)
+    if (from) qs.set("from", format(from, "yyyy-MM-dd"))
+    if (to) qs.set("to", format(to, "yyyy-MM-dd"))
     const res = await fetch(`/api/reports/summary?${qs.toString()}`)
     const summary = await res.json()
 
@@ -770,10 +947,14 @@ function ReportsSection() {
 
   function getCategoryHazardLevel(category: string): string {
     const hazardMap: Record<string, string> = {
+      'Tablet': 'Medium - Contains Li-ion battery',
+      'Microwave': 'High - Contains magnetron and capacitors',
+      'Air Conditioner': 'High - Refrigerants and electrical components',
+      'TV': 'High - Contains heavy metals and mercury',
+      'Washing Machine': 'Medium - Electrical components and motors',
       'Laptop': 'Medium - Contains Li-ion battery',
-      'Monitor': 'High - Contains heavy metals',
-      'Battery': 'High - Hazardous chemicals',
-      'Other': 'Variable - Case-by-case assessment'
+      'Smartphone': 'Medium - Contains Li-ion battery and rare earth metals',
+      'Refrigerator': 'High - Refrigerants and foam blowing agents'
     }
     return hazardMap[category] || 'Assessment Required'
   }
@@ -791,11 +972,74 @@ function ReportsSection() {
         <div className="grid sm:grid-cols-[180px_180px_auto] gap-3">
           <div className="grid gap-2">
             <Label>From Date</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !from && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {from ? format(from, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={from}
+                  onSelect={handleFromDateChange}
+                  disabled={(date) => date > today}
+                  showOutsideDays={false}
+                  captionLayout="dropdown"
+                  fromDate={new Date(2020, 0, 1)}
+                  toDate={today}
+                  fromYear={2020}
+                  toYear={currentYear}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="grid gap-2">
             <Label>To Date</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !to && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {to ? format(to, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={to}
+                  onSelect={setTo}
+                  disabled={(date) => {
+                    if (from) {
+                      // Disable dates before the selected "from" date and after today
+                      return date < from || date > today
+                    }
+                    // If no "from" date selected, disable future dates only
+                    return date > today
+                  }}
+                  showOutsideDays={false}
+                  captionLayout="dropdown"
+                  fromDate={from || new Date(2020, 0, 1)}
+                  toDate={today}
+                  fromYear={from ? from.getFullYear() : 2020}
+                  toYear={currentYear}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="flex items-end">
             <Button 
@@ -826,9 +1070,15 @@ function ReportsSection() {
 
 function CampaignsSection() {
   const [title, setTitle] = useState("")
-  const [date, setDate] = useState("")
+  const [date, setDate] = useState<Date>()
   const [description, setDescription] = useState("")
   const [rows, setRows] = useState<Array<{ id: string; title: string; date: string; description?: string }>>([])
+
+  // Get current date and calculate year range dynamically
+  const currentDate = new Date()
+  const currentYear = currentDate.getFullYear()
+  const today = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()) // Today at 00:00:00
+  const maxDate = new Date(currentYear + 2, 11, 31) // End of year + 2 years
 
   async function load() {
     const r = await fetch("/api/campaigns")
@@ -844,11 +1094,11 @@ function CampaignsSection() {
     const res = await fetch("/api/campaigns", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title, date, description }),
+      body: JSON.stringify({ title, date: format(date, "yyyy-MM-dd"), description }),
     })
     if (res.ok) {
       setTitle("")
-      setDate("")
+      setDate(undefined)
       setDescription("")
       await load()
     } else {
@@ -870,7 +1120,35 @@ function CampaignsSection() {
           </div>
           <div className="grid gap-2">
             <Label>Date</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  disabled={(date) => date < today}
+                  showOutsideDays={false}
+                  captionLayout="dropdown"
+                  fromDate={today}
+                  toDate={maxDate}
+                  fromYear={currentYear}
+                  toYear={currentYear + 2}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="grid gap-2 md:col-span-3">
             <Label>Description</Label>

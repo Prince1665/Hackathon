@@ -188,12 +188,75 @@ export default function VendorScanPage() {
     }
   }
 
-  const [scheduled, setScheduled] = useState<Array<{ id: string; scheduled_date: string; status: string; items: Array<{ id: string; name: string; category: string }> }>>([])
+  const [scheduled, setScheduled] = useState<Array<{ 
+    id: string; 
+    scheduled_date: string; 
+    status: string; 
+    vendor_response?: string | null; 
+    vendor_response_note?: string | null; 
+    contact_emails: string[]; 
+    items: Array<{ 
+      id: string; 
+      name: string; 
+      category: string; 
+      current_price?: number; 
+      original_price?: number; 
+      brand?: string; 
+      condition?: number; 
+      build_quality?: number; 
+      usage_pattern?: string; 
+      used_duration?: number; 
+      user_lifespan?: number; 
+      reported_by: string; 
+      reporter_email: string; 
+    }> 
+  }>>([])
+
+  // Check if there are any pending pickups (status = "Scheduled" without vendor response)
+  const hasPendingPickups = scheduled.some(p => p.status === "Scheduled" && !p.vendor_response)
 
   useEffect(() => {
     // Load scheduled pickups for this vendor
-    fetch("/api/vendor/pickups").then(async (r) => setScheduled(await r.json())).catch(() => setScheduled([]))
+    fetch("/api/vendor/pickups").then(async (r) => {
+      const data = await r.json()
+      // Sort by scheduled_date in descending order (latest first)
+      const sortedData = data.sort((a: any, b: any) => new Date(b.scheduled_date).getTime() - new Date(a.scheduled_date).getTime())
+      setScheduled(sortedData)
+    }).catch(() => setScheduled([]))
   }, [])
+
+  async function respondToPickup(pickupId: string, response: "Accepted" | "Rejected", note?: string) {
+    try {
+      const res = await fetch("/api/vendor/pickup-response", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          pickup_id: pickupId,
+          response: response,
+          note: note
+        })
+      })
+      
+      if (res.ok) {
+        // Show success message
+        alert(`Pickup ${response.toLowerCase()} successfully!${response === "Rejected" ? " Items are now available for rescheduling." : ""}`)
+        
+        // Reload scheduled pickups
+        const updatedRes = await fetch("/api/vendor/pickups")
+        if (updatedRes.ok) {
+          const data = await updatedRes.json()
+          // Sort by scheduled_date in descending order (latest first)
+          const sortedData = data.sort((a: any, b: any) => new Date(b.scheduled_date).getTime() - new Date(a.scheduled_date).getTime())
+          setScheduled(sortedData)
+        }
+      } else {
+        alert("Failed to update response")
+      }
+    } catch (error) {
+      console.error("Error responding to pickup:", error)
+      alert("Failed to update response")
+    }
+  }
 
   return (
     <main>
@@ -202,7 +265,12 @@ export default function VendorScanPage() {
         <Tabs defaultValue="scan">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="scan">Scan</TabsTrigger>
-            <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
+            <TabsTrigger value="scheduled" className="relative">
+              Scheduled
+              {hasPendingPickups && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="scan" className="grid gap-6">
@@ -265,31 +333,169 @@ export default function VendorScanPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Scheduled pickups</CardTitle>
-                <CardDescription>Upcoming pickups assigned to your company.</CardDescription>
+                <CardDescription>Upcoming pickups assigned to your company. Review item details and respond to pickup requests.</CardDescription>
               </CardHeader>
               <CardContent>
                 {scheduled.length === 0 ? (
                   <div className="text-sm text-muted-foreground">No scheduled pickups.</div>
                 ) : (
-                  <div className="grid gap-3">
+                  <div className="grid gap-4">
                     {scheduled.map((p) => (
-                      <div key={p.id} className="rounded border p-3">
+                      <div key={p.id} className="rounded border p-4 space-y-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="text-sm text-muted-foreground">{new Date(p.scheduled_date).toLocaleDateString()}</div>
                             <div className="font-medium">Pickup #{p.id.slice(0, 8)}</div>
                           </div>
-                          <Badge>{p.status}</Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={p.status === "Vendor_Accepted" ? "default" : p.status === "Vendor_Rejected" ? "destructive" : "secondary"}>
+                              {p.status.replace("_", " ")}
+                            </Badge>
+                          </div>
                         </div>
+
+                        {/* Item Details */}
                         {p.items?.length ? (
-                          <ul className="mt-2 text-sm list-disc pl-5">
-                            {p.items.map((it) => (
-                              <li key={it.id}>
-                                {it.name} <span className="text-muted-foreground">({it.category})</span>
-                              </li>
+                          <div className="space-y-3">
+                            <div className="text-sm font-medium">Items for pickup:</div>
+                            {p.items.map((item) => (
+                              <div key={item.id} className="bg-muted/50 rounded-lg p-3 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="font-medium">{item.name}</div>
+                                  <Badge variant="outline">{item.category}</Badge>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                  {item.brand && (
+                                    <div>
+                                      <span className="text-muted-foreground">Brand:</span> {item.brand}
+                                    </div>
+                                  )}
+                                  {item.condition && (
+                                    <div>
+                                      <span className="text-muted-foreground">Condition:</span> {item.condition}/5
+                                    </div>
+                                  )}
+                                  {item.build_quality && (
+                                    <div>
+                                      <span className="text-muted-foreground">Build Quality:</span> {item.build_quality}/5
+                                    </div>
+                                  )}
+                                  {item.usage_pattern && (
+                                    <div>
+                                      <span className="text-muted-foreground">Usage:</span> {item.usage_pattern}
+                                    </div>
+                                  )}
+                                  {item.used_duration && (
+                                    <div>
+                                      <span className="text-muted-foreground">Used:</span> {item.used_duration} years
+                                    </div>
+                                  )}
+                                  {item.user_lifespan && (
+                                    <div>
+                                      <span className="text-muted-foreground">Lifespan:</span> {item.user_lifespan} years
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Reporter Contact for this specific item */}
+                                {item.reporter_email && item.reporter_email !== "Unknown" ? (
+                                  <div className="bg-blue-50 border border-blue-200 rounded-md p-2 mt-2">
+                                    <div className="text-xs font-medium text-blue-700 mb-1">📧 Item Reporter</div>
+                                    <div className="text-sm">
+                                      <a href={`mailto:${item.reporter_email}`} className="font-medium text-blue-700 hover:underline">
+                                        {item.reporter_email}
+                                      </a>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="bg-gray-50 border border-gray-200 rounded-md p-2 mt-2">
+                                    <div className="text-xs font-medium text-gray-600 mb-1">📧 Item Reporter</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      Contact information not available
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Highlighted Price Information */}
+                                <div className="bg-primary/10 border border-primary/20 rounded-md p-3 mt-3">
+                                  <div className="text-sm font-medium text-primary mb-1">💰 Price Information</div>
+                                  <div className="grid grid-cols-2 gap-2 text-sm">
+                                    {item.original_price && (
+                                      <div>
+                                        <span className="text-muted-foreground">Original Price:</span> 
+                                        <span className="font-medium ml-1">₹{item.original_price.toLocaleString()}</span>
+                                      </div>
+                                    )}
+                                    {item.current_price && (
+                                      <div>
+                                        <span className="text-muted-foreground">Current Value:</span> 
+                                        <span className="font-bold text-primary ml-1 text-base">₹{item.current_price.toLocaleString()}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Contact Information for this item */}
+                                {p.contact_emails && p.contact_emails.length > 0 && (
+                                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-2">
+                                    <div className="text-sm font-medium text-blue-700 mb-1">📧 Reporter Contact{p.contact_emails.length > 1 ? 's' : ''}</div>
+                                    <div className="text-sm space-y-1">
+                                      {p.contact_emails.map((email: string, idx: number) => (
+                                        <div key={idx}>
+                                          <a href={`mailto:${email}`} className="font-medium text-blue-700 hover:underline">
+                                            {email}
+                                          </a>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             ))}
-                          </ul>
+                          </div>
                         ) : null}
+
+                        {/* Vendor Response Section */}
+                        {p.vendor_response ? (
+                          <div className={`rounded-lg p-3 ${p.vendor_response === "Accepted" ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className={`text-sm font-medium ${p.vendor_response === "Accepted" ? "text-green-700" : "text-red-700"}`}>
+                                Response: {p.vendor_response}
+                              </div>
+                            </div>
+                            {p.vendor_response_note && (
+                              <div className="text-sm text-muted-foreground">
+                                <span className="font-medium">Note:</span> {p.vendor_response_note}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          p.status === "Scheduled" && (
+                            <div className="flex gap-2 pt-2">
+                              <Button 
+                                size="sm" 
+                                onClick={() => respondToPickup(p.id, "Accepted")}
+                                className="flex-1"
+                              >
+                                Accept Pickup
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => {
+                                  const note = prompt("Optional note for rejection:")
+                                  if (confirm("Rejecting this pickup will make the items available for rescheduling. Are you sure?")) {
+                                    respondToPickup(p.id, "Rejected", note || undefined)
+                                  }
+                                }}
+                                className="flex-1"
+                              >
+                                Reject Pickup
+                              </Button>
+                            </div>
+                          )
+                        )}
                       </div>
                     ))}
                   </div>

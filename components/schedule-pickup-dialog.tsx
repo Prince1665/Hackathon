@@ -6,7 +6,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import { useEffect } from "react"
+import { format } from "date-fns"
+import { CalendarIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 type Item = { id: string; name: string }
 type Vendor = { id: string; company_name: string; contact_person: string; email: string; cpcb_registration_no: string }
@@ -24,8 +29,14 @@ export function SchedulePickupDialog({
 }) {
   const [open, setOpen] = useState(false)
   const [vendorId, setVendorId] = useState<string>("")
-  const [date, setDate] = useState<string>("")
+  const [date, setDate] = useState<Date>()
   const [adminId, setAdminId] = useState<string>("")
+
+  // Get current date and calculate year range dynamically
+  const currentDate = new Date()
+  const currentYear = currentDate.getFullYear()
+  const today = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()) // Today at 00:00:00
+  const maxDate = new Date(currentYear + 2, 11, 31) // End of year + 2 years
 
   useEffect(() => {
     fetch("/api/auth/session").then(async (r) => {
@@ -45,7 +56,7 @@ export function SchedulePickupDialog({
       body: JSON.stringify({
         vendor_id: vendorId,
         admin_id: adminId || "unknown-admin",
-        scheduled_date: date,
+        scheduled_date: format(date, "yyyy-MM-dd"),
         item_ids: selectedIds,
       }),
     })
@@ -82,7 +93,35 @@ export function SchedulePickupDialog({
           </div>
           <div className="grid gap-2">
             <Label>Date</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  disabled={(date) => date < today}
+                  showOutsideDays={false}
+                  captionLayout="dropdown"
+                  fromDate={today}
+                  toDate={maxDate}
+                  fromYear={currentYear}
+                  toYear={currentYear + 2}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
         <DialogFooter>
