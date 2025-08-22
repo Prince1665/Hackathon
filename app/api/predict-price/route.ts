@@ -34,6 +34,13 @@ function calculatePriceHeuristic(itemData: any): number {
     category = "Laptop"
   } = itemData
 
+  // Validate input values
+  const validOriginalPrice = Math.max(0, Number(original_price) || 50000)
+  const validUsedDuration = Math.max(0, Number(used_duration) || 0)
+  const validUserLifespan = Math.max(1, Number(user_lifespan) || 5) // Prevent division by zero
+  const validCondition = Math.max(1, Math.min(5, Number(condition) || 3))
+  const validBuildQuality = Math.max(1, Math.min(5, Number(build_quality) || 3))
+
   // Basic depreciation calculation
   let depreciationRate = 0.15 // 15% per year base rate
   
@@ -52,20 +59,20 @@ function calculatePriceHeuristic(itemData: any): number {
   depreciationRate = categoryMultipliers[category] || 0.15
   
   // Adjust for condition (1-5 scale)
-  const conditionMultiplier = Math.max(0.1, condition / 5)
+  const conditionMultiplier = Math.max(0.1, validCondition / 5)
   
   // Adjust for build quality (1-5 scale)
-  const qualityMultiplier = Math.max(0.8, 0.8 + (build_quality - 3) * 0.1)
+  const qualityMultiplier = Math.max(0.8, 0.8 + (validBuildQuality - 3) * 0.1)
   
   // Calculate depreciated value
-  const yearsUsed = Math.min(used_duration, user_lifespan)
-  const depreciatedValue = original_price * Math.pow(1 - depreciationRate, yearsUsed)
+  const yearsUsed = Math.min(validUsedDuration, validUserLifespan)
+  const depreciatedValue = validOriginalPrice * Math.pow(1 - depreciationRate, yearsUsed)
   
   // Apply condition and quality adjustments
   let currentPrice = depreciatedValue * conditionMultiplier * qualityMultiplier
   
   // Ensure minimum value (5% of original price)
-  currentPrice = Math.max(currentPrice, original_price * 0.05)
+  currentPrice = Math.max(currentPrice, validOriginalPrice * 0.05)
   
   return Math.round(currentPrice)
 }

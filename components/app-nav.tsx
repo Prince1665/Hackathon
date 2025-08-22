@@ -21,10 +21,19 @@ export function AppNav({ className }: { className?: string }) {
   const [showBlocked, setShowBlocked] = useState(false)
 
   useEffect(() => {
-    fetch("/api/auth/session").then(async (r) => {
-      const s = await r.json()
-      setRole(s?.user?.role ?? null)
-    })
+    fetch("/api/auth/session")
+      .then(async (r) => {
+        if (r.ok) {
+          const s = await r.json()
+          setRole(s?.user?.role ?? null)
+        } else {
+          setRole(null)
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching session:", error)
+        setRole(null)
+      })
   }, [])
 
   function canAccess(path: string): boolean {

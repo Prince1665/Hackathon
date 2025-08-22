@@ -1,4 +1,4 @@
-const crypto = require("node:crypto")
+import crypto from "node:crypto"
 import { cookies } from "next/headers"
 import { getSessionById, getUserByEmail, getUserById } from "./auth-mongo"
 
@@ -25,8 +25,10 @@ export type Session = {
 export async function signInWithPassword(email: string, password: string): Promise<Session | null> {
   const user = await getUserByEmail(email)
   if (!user || !user.passwordHash) return null
-  const hash = sha256(password)
-  if (hash !== user.passwordHash) return null
+  // Use bcrypt for consistent password verification
+  const bcrypt = require("bcryptjs")
+  const ok = await bcrypt.compare(password, user.passwordHash)
+  if (!ok) return null
   const session: Session = {
     user: {
       user_id: String(user._id),

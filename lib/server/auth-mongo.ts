@@ -1,5 +1,5 @@
 import { getDb } from "./mongo"
-const bcrypt = require("bcryptjs")
+import bcrypt from "bcryptjs"
 import { randomUUID } from "crypto"
 import { ObjectId } from "mongodb"
 

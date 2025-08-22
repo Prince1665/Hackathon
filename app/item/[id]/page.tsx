@@ -31,7 +31,6 @@ type Item = {
   used_duration?: number
   current_price?: number
   predicted_price?: number
-  price_source?: "ml" | "user"
   price_confirmed?: boolean
 }
 
@@ -117,10 +116,14 @@ export default function ItemDetailsPage() {
                     )}
                     <div>
                       <span className="text-muted-foreground">Current Price:</span>
-                      <span className="font-bold text-green-700 ml-2">₹{item.current_price.toLocaleString()}</span>
-                      {item.price_source && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {item.price_source === "ml" ? "🤖 ML predicted price selected by reporter" : "👤 Custom price set by reporter"}
+                      <span className="font-bold ml-2 text-green-700">
+                        ₹{item.current_price.toLocaleString()}
+                      </span>
+                      {item.predicted_price && item.predicted_price !== (item.current_price || 0) && (
+                        <div className="text-xs text-muted-foreground mt-1 p-2 bg-gray-50 dark:bg-gray-900 rounded-md">
+                          <div className="text-xs text-blue-600">
+                            ML had predicted: ₹{item.predicted_price.toLocaleString()}
+                          </div>
                         </div>
                       )}
                     </div>

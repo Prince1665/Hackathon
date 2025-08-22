@@ -31,7 +31,6 @@ export type EwasteItem = {
   used_duration?: number
   current_price?: number
   predicted_price?: number
-  price_source?: "ml" | "user"
   price_confirmed?: boolean
 }
 export type Pickup = { 
@@ -143,7 +142,6 @@ export async function createItem(input: {
   used_duration?: number;
   current_price?: number;
   predicted_price?: number;
-  price_source?: "ml" | "user";
   price_confirmed?: boolean;
 }): Promise<EwasteItem> {
   const db = await getDb()
@@ -162,11 +160,11 @@ export async function createItem(input: {
     current_price: input.current_price
   })
   
-  // Use provided current_price if available, otherwise use predicted price
+  // Use provided current_price (user-entered price) or fallback to predicted price
   const finalCurrentPrice = input.current_price !== undefined && input.current_price !== null 
     ? Math.max(0, Number(input.current_price)) 
     : predictedPrice
-  
+
   const doc = {
     _id: id,
     name: input.name,
@@ -187,9 +185,8 @@ export async function createItem(input: {
     condition: input.condition ? Math.max(0, Number(input.condition)) : null,
     original_price: input.original_price ? Math.max(0, Number(input.original_price)) : null,
     used_duration: input.used_duration ? Math.max(0, Number(input.used_duration)) : null,
-    current_price: finalCurrentPrice,
-    predicted_price: input.predicted_price ? Math.max(0, Number(input.predicted_price)) : predictedPrice,
-    price_source: input.price_source || "user",
+    current_price: finalCurrentPrice, // User-entered price
+    predicted_price: input.predicted_price ? Math.max(0, Number(input.predicted_price)) : predictedPrice, // ML prediction for reference
     price_confirmed: input.price_confirmed || false,
   }
   await db.collection("items").insertOne(doc as any)

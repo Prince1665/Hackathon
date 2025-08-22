@@ -41,7 +41,6 @@ type Item = {
   used_duration?: number
   current_price?: number
   predicted_price?: number
-  price_source?: "ml" | "user"
   price_confirmed?: boolean
 }
 
@@ -59,38 +58,26 @@ export default function Page() {
     return category === "TV" ? "TV / Monitor" : category
   }
   
-  // Helper function to display price with source information
+  // Helper function to display price
   const displayPrice = (item: Item) => {
-    if (!item.current_price && !item.predicted_price) return <div className="text-xs">₹0</div>;
+    const currentPrice = item.current_price || 0;
+    const predictedPrice = item.predicted_price || 0;
     
-    // Always show the current_price (which is the final confirmed price)
-    // But show different labels based on price_source
-    const price = item.current_price || 0;
-    const priceString = `₹${price.toLocaleString()}`;
-    
-    if (item.price_source === "ml") {
-      return (
-        <div className="text-right">
-          <div className="text-xs font-medium truncate">{priceString}</div>
-          <div className="text-[10px] text-blue-600 truncate">🤖 ML Selected</div>
-        </div>
-      );
-    } else if (item.price_source === "user") {
-      return (
-        <div className="text-right">
-          <div className="text-xs font-medium truncate">{priceString}</div>
-          <div className="text-[10px] text-green-600 truncate">👤 User Set</div>
-        </div>
-      );
-    } else {
-      // Fallback for items without price_source
-      return (
-        <div className="text-right">
-          <div className="text-xs font-medium truncate">{priceString}</div>
-          <div className="text-[10px] text-gray-600 truncate">💰 Price Set</div>
-        </div>
-      );
+    // If no price at all, show zero
+    if (!currentPrice && !predictedPrice) {
+      return <div className="text-xs">₹0</div>;
     }
+    
+    return (
+      <div className="text-right">
+        <div className="text-xs font-medium truncate">₹{currentPrice.toLocaleString()}</div>
+        {predictedPrice > 0 && predictedPrice !== currentPrice && (
+          <div className="text-[8px] text-gray-500 truncate">
+            ML predicted: ₹{predictedPrice.toLocaleString()}
+          </div>
+        )}
+      </div>
+    );
   }
   const [disp, setDisp] = useState<string>("")
   const [selected, setSelected] = useState<Record<string, boolean>>({})
@@ -121,7 +108,8 @@ export default function Page() {
     if (category) qs.set("category", category)
     if (disp) qs.set("disposition", disp as any)
     const res = await fetch(`/api/items?${qs.toString()}`)
-    setItems(await res.json())
+    const itemsData = await res.json()
+    setItems(itemsData)
     
     // Also reload pickups to get updated vendor responses
     const pickupsRes = await fetch("/api/admin/pickups")
@@ -395,9 +383,9 @@ export default function Page() {
                                     <div className="font-medium text-green-600">
                                       {i.current_price ? `₹${i.current_price.toLocaleString()}` : "₹0"}
                                     </div>
-                                    {i.price_source && (
-                                      <div className="text-xs text-right">
-                                        {i.price_source === "ml" ? "🤖 ML Selected" : "👤 User Set"}
+                                    {i.predicted_price && i.predicted_price !== (i.current_price || 0) && (
+                                      <div className="text-xs text-right text-gray-500">
+                                        ML predicted: ₹{i.predicted_price.toLocaleString()}
                                       </div>
                                     )}
                                   </div>

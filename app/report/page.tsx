@@ -31,6 +31,9 @@ type Item = {
   condition?: number
   original_price?: number
   used_duration?: number
+  current_price?: number
+  predicted_price?: number
+  price_confirmed?: boolean
 }
 
 export default function ReportPage() {
@@ -66,7 +69,6 @@ export default function ReportPage() {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [predictedPrice, setPredictedPrice] = useState<number | null>(null)
   const [priceLoading, setPriceLoading] = useState(false)
-  const [usePredictedPrice, setUsePredictedPrice] = useState(true)
   const [customPrice, setCustomPrice] = useState<string>("")
   const [priceConfirmed, setPriceConfirmed] = useState(false)
   const [customPriceError, setCustomPriceError] = useState<string>("")
@@ -115,7 +117,8 @@ export default function ReportPage() {
       if (response.ok) {
         const data = await response.json()
         setPredictedPrice(data.predicted_price)
-        setUsePredictedPrice(true)
+        // Reset price confirmation when new prediction is fetched
+        setPriceConfirmed(false)
       }
     } catch (error) {
       console.error("Error predicting price:", error)
@@ -167,18 +170,16 @@ export default function ReportPage() {
 
   // Auto-validate custom price when it changes
   useEffect(() => {
-    if (!usePredictedPrice) {
-      validateCustomPrice(customPrice)
-    }
-  }, [customPrice, usePredictedPrice, validateCustomPrice])
+    validateCustomPrice(customPrice)
+  }, [customPrice, validateCustomPrice])
 
   const canSubmit = useMemo(() => {
     // Check basic required fields
     if (!form.name || !form.category || !form.department_id || !form.reported_by) return false
     
-    // Check if price is confirmed when ML prediction is available OR when user enters custom price
-    if (predictedPrice !== null && !priceConfirmed) return false
-    if (!usePredictedPrice && customPrice && !priceConfirmed) return false
+    // Check if price is confirmed and custom price is entered
+    if (!priceConfirmed) return false
+    if (!customPrice || Number(customPrice) <= 0) return false
     
     // Check that numeric fields are not negative
     const numericFields = [
@@ -192,8 +193,8 @@ export default function ReportPage() {
       if (field && Number(field) < 0) return false
     }
     
-    // Check that custom price is valid when user selects custom option
-    if (!usePredictedPrice && customPrice) {
+    // Check that custom price is valid
+    if (customPrice) {
       const customPriceNum = Number(customPrice)
       const originalPriceNum = Number(form.original_price)
       if (isNaN(customPriceNum) || customPriceNum < 0) return false
@@ -204,7 +205,7 @@ export default function ReportPage() {
     }
     
     return true
-  }, [form, predictedPrice, priceConfirmed, usePredictedPrice, customPrice, customPriceError])
+  }, [form, priceConfirmed, customPrice, customPriceError])
 
   const onSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
@@ -212,12 +213,8 @@ export default function ReportPage() {
     
     setIsSubmitting(true)
     try {
-      // Determine the final current price and track pricing details
-      const finalCurrentPrice = usePredictedPrice && predictedPrice 
-        ? predictedPrice 
-        : customPrice 
-        ? Number(customPrice) 
-        : predictedPrice || 0
+      // Only use user-entered price - no ML price selection
+      const userEnteredPrice = customPrice ? Number(customPrice) : 0
 
       const submitData = {
         name: form.name,
@@ -234,17 +231,18 @@ export default function ReportPage() {
         condition: form.condition || undefined,
         original_price: form.original_price || undefined,
         used_duration: form.used_duration || undefined,
-        current_price: finalCurrentPrice,
-        predicted_price: predictedPrice, // Store the ML predicted price
-        price_source: usePredictedPrice ? "ml" : "user", // Track if price is from ML or user
-        price_confirmed: true, // Track that the price was confirmed by the reporter
+        current_price: userEnteredPrice, // Only user-entered price
+        predicted_price: predictedPrice || 0, // Store ML prediction for reference only
+        price_confirmed: true,
       };
 
+      console.log("=== SIMPLIFIED PRICE TRACKING ===");
       console.log("Submitting item with data:", submitData);
-      console.log("usePredictedPrice:", usePredictedPrice);
-      console.log("customPrice:", customPrice);
-      console.log("predictedPrice:", predictedPrice);
-      console.log("finalCurrentPrice:", finalCurrentPrice);
+      console.log("User input - customPrice:", customPrice);
+      console.log("ML predicted - predictedPrice:", predictedPrice);
+      console.log("Final user price - userEnteredPrice:", userEnteredPrice);
+      console.log("Price confirmed:", submitData.price_confirmed);
+      console.log("====================================");
 
       const res = await fetch("/api/items", {
         method: "POST",
@@ -508,82 +506,54 @@ export default function ReportPage() {
                         {priceLoading && <div className="text-sm text-muted-foreground">Calculating...</div>}
                       </div>
                       
-                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                        ₹{predictedPrice.toLocaleString()}
+                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                        ML Prediction: ₹{predictedPrice.toLocaleString()}
+                      </div>
+                      
+                      <div className="text-sm text-muted-foreground">
+                        This is our AI's price estimate based on your item's specifications.
                       </div>
                       
                       <div className="space-y-3">
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="radio"
-                            id="use-predicted"
-                            name="price-option"
-                            checked={usePredictedPrice}
-                            onChange={() => {
-                              setUsePredictedPrice(true)
-                              setPriceConfirmed(false) // Reset confirmation when choice changes
-                              setCustomPriceError("") // Clear any custom price errors
-                            }}
-                            className="w-4 h-4 text-green-600"
-                          />
-                          <Label htmlFor="use-predicted" className="cursor-pointer">
-                            Use ML predicted price (₹{predictedPrice.toLocaleString()})
-                          </Label>
-                        </div>
-                        
                         <div className="space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="radio"
-                              id="use-custom"
-                              name="price-option"
-                              checked={!usePredictedPrice}
-                              onChange={() => {
-                                setUsePredictedPrice(false)
-                                setPriceConfirmed(false) // Reset confirmation when choice changes
-                                validateCustomPrice(customPrice) // Validate current custom price if any
-                              }}
-                              className="w-4 h-4 text-green-600"
-                            />
-                            <Label htmlFor="use-custom" className="cursor-pointer">
-                              Set my own price
-                            </Label>
+                          <Label htmlFor="user-price" className="font-medium">
+                            Enter Your Price (Required)
+                          </Label>
+                          <div className="text-xs text-muted-foreground">
+                            Set the price for this item. You can use the ML prediction as reference.
                           </div>
                           
-                          {!usePredictedPrice && (
-                            <div className="ml-6 space-y-2">
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                placeholder="Enter your price"
-                                value={customPrice}
-                                onChange={(e) => {
-                                  setCustomPrice(e.target.value)
-                                  setPriceConfirmed(false) // Reset confirmation when custom price changes
-                                }}
-                                className={`max-w-xs ${customPriceError ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-                              />
-                              {customPriceError && (
-                                <div className="text-sm text-red-600 dark:text-red-400">
-                                  ⚠️ {customPriceError}
-                                </div>
-                              )}
+                          <Input
+                            id="user-price"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="Enter your price"
+                            value={customPrice}
+                            onChange={(e) => {
+                              setCustomPrice(e.target.value)
+                              setPriceConfirmed(false) // Reset confirmation when price changes
+                            }}
+                            className={`max-w-xs ${customPriceError ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                          />
+                          {customPriceError && (
+                            <div className="text-sm text-red-600 dark:text-red-400">
+                              ⚠️ {customPriceError}
                             </div>
                           )}
                         </div>
                       </div>
                       
                       <div className="text-xs text-muted-foreground">
-                        💡 Our AI considers category, condition, age, brand, and market trends to estimate current value.
+                        💡 Our AI considers category, condition, age, brand, and market trends to provide the estimate above.
                       </div>
                       
                       {/* Confirmation Button */}
-                      <div className="pt-3 border-t border-green-200">
+                      <div className="pt-3 border-t border-blue-200">
                         <Button
                           type="button"
                           onClick={() => setPriceConfirmed(true)}
-                          disabled={priceConfirmed || (!usePredictedPrice && (!customPrice || Number(customPrice) <= 0 || !!customPriceError))}
+                          disabled={priceConfirmed || (!customPrice || Number(customPrice) <= 0 || !!customPriceError)}
                           className={`w-full ${
                             priceConfirmed 
                               ? "bg-green-600 hover:bg-green-600 text-white" 
@@ -592,18 +562,25 @@ export default function ReportPage() {
                         >
                           {priceConfirmed ? (
                             <>✓ Price Confirmed</>
-                          ) : !usePredictedPrice && (!customPrice || Number(customPrice) <= 0 || !!customPriceError) ? (
+                          ) : (!customPrice || Number(customPrice) <= 0 || !!customPriceError) ? (
                             <>Enter a valid price to confirm</>
                           ) : (
-                            <>Confirm Selected Price</>
+                            <>Confirm Price</>
                           )}
                         </Button>
                         {priceConfirmed && (
-                          <div className="text-center text-sm text-green-600 mt-2">
-                            ✓ You've confirmed: {usePredictedPrice 
-                              ? `ML predicted price (₹${predictedPrice?.toLocaleString()})` 
-                              : `Custom price (₹${Number(customPrice).toLocaleString()})`
-                            }
+                          <div className="text-center p-3 bg-green-50 dark:bg-green-950/50 rounded-md border border-green-200 dark:border-green-800">
+                            <div className="text-sm font-medium text-green-700 dark:text-green-300">
+                              ✓ Price Confirmed
+                            </div>
+                            <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                              Using your price: ₹{Number(customPrice).toLocaleString()}
+                            </div>
+                            {predictedPrice && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                (ML predicted: ₹{predictedPrice.toLocaleString()})
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -618,7 +595,7 @@ export default function ReportPage() {
                 >
                   {isSubmitting 
                     ? "Creating..." 
-                    : !priceConfirmed && (predictedPrice !== null || (!usePredictedPrice && customPrice))
+                    : !priceConfirmed && (predictedPrice !== null || customPrice)
                     ? "Confirm price to continue" 
                     : "Create & generate QR"
                   }
