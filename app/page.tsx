@@ -8,8 +8,21 @@ import { getSession } from "@/lib/server/auth"
 import { listCampaigns } from "@/lib/server/data-mongo"
 
 export default async function Page() {
-  const session = await getSession()
-  const campaigns = await listCampaigns()
+  let session = null
+  let campaigns: any[] = []
+  
+  try {
+    session = await getSession()
+  } catch (error) {
+    console.error('Error getting session:', error)
+  }
+  
+  try {
+    campaigns = await listCampaigns()
+  } catch (error) {
+    console.error('Error getting campaigns:', error)
+  }
+  
   const now = new Date()
   const upcoming = campaigns
     .filter((c) => {
@@ -69,6 +82,15 @@ export default async function Page() {
               <Button asChild className="bg-white/20 hover:bg-white/30 text-white border border-white/40 hover:border-white/60 px-6 py-3 text-sm sm:text-base font-medium rounded-lg transition-all duration-200 backdrop-blur-sm shadow-lg hover:shadow-xl w-full sm:w-auto">
                 <Link href="/report">Report an item</Link>
               </Button>
+              {session?.user?.role === "vendor" ? (
+                <Button asChild className="bg-white/20 hover:bg-white/30 text-white border border-white/40 hover:border-white/60 px-6 py-3 text-sm sm:text-base font-medium rounded-lg transition-all duration-200 backdrop-blur-sm shadow-lg hover:shadow-xl w-full sm:w-auto">
+                  <Link href="/vendor/auctions">Auctions</Link>
+                </Button>
+              ) : session?.user?.role === "admin" ? null : session?.user ? (
+                <Button asChild className="bg-white/20 hover:bg-white/30 text-white border border-white/40 hover:border-white/60 px-6 py-3 text-sm sm:text-base font-medium rounded-lg transition-all duration-200 backdrop-blur-sm shadow-lg hover:shadow-xl w-full sm:w-auto">
+                  <Link href="/my-auctions">My Auctions</Link>
+                </Button>
+              ) : null}
               <Button asChild className="bg-white/20 hover:bg-white/30 text-white border border-white/40 hover:border-white/60 px-6 py-3 text-sm sm:text-base font-medium rounded-lg transition-all duration-200 backdrop-blur-sm shadow-lg hover:shadow-xl w-full sm:w-auto">
                 <Link href="/admin">Admin Dashboard</Link>
               </Button>

@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts"
-import { format } from "date-fns"
+import { format, formatDistanceToNow } from "date-fns"
 import { CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -45,6 +45,29 @@ type Item = {
 }
 
 type Vendor = { id: string; company_name: string; contact_person: string; email: string; cpcb_registration_no: string }
+
+type Auction = {
+  id: string
+  item_id: string
+  created_by: string
+  starting_price: number
+  current_highest_bid?: number
+  current_highest_bidder?: string
+  status: "active" | "completed" | "cancelled"
+  duration_hours: number
+  start_time: string
+  end_time: string
+  created_at: string
+}
+
+type Bid = {
+  id: string
+  auction_id: string
+  vendor_id: string
+  amount: number
+  bid_time: string
+  status: "active" | "outbid" | "winning"
+}
 
 export default function Page() {
   const router = useRouter()
@@ -98,6 +121,10 @@ export default function Page() {
   const [statusDist, setStatusDist] = useState<{ status: string; count: number; percentage: string }[]>([])
   const [dispositionDist, setDispositionDist] = useState<{ disposition: string; count: number; percentage: string }[]>([])
   const [itemsByDate, setItemsByDate] = useState<{ date: string; count: number; formattedDate: string }[]>([])
+  
+  // Auction state
+  const [auctions, setAuctions] = useState<Auction[]>([])
+  const [bids, setBids] = useState<{ [auctionId: string]: Bid[] }>({})
 
   // Chart colors
   const CHART_COLORS = ['#3e5f44', '#9ac37e', '#6b8f71', '#a8d18a', '#4a6e50', '#7ca67f', '#8fb585']
@@ -118,16 +145,70 @@ export default function Page() {
     }
   }
 
+  async function fetchAuctions() {
+    try {
+      const response = await fetch("/api/auctions")
+      if (!response.ok) {
+        console.warn("Auctions API not available yet")
+        return
+      }
+      
+      const auctionsData = await response.json()
+      setAuctions(auctionsData)
+      
+      // Fetch bids for each auction
+      const bidPromises = auctionsData.map(async (auction: Auction) => {
+        try {
+          const bidResponse = await fetch(`/api/auctions/${auction.id}/bids`)
+          if (bidResponse.ok) {
+            const auctionBids = await bidResponse.json()
+            return { auctionId: auction.id, bids: auctionBids }
+          }
+          return { auctionId: auction.id, bids: [] }
+        } catch (error) {
+          console.warn(`Error fetching bids for auction ${auction.id}:`, error)
+          return { auctionId: auction.id, bids: [] }
+        }
+      })
+      
+      const bidResults = await Promise.all(bidPromises)
+      const bidMap: { [auctionId: string]: Bid[] } = {}
+      bidResults.forEach(({ auctionId, bids }) => {
+        bidMap[auctionId] = bids
+      })
+      setBids(bidMap)
+    } catch (error) {
+      console.error("Error fetching auctions:", error)
+      // Don't throw, just log the error
+    }
+  }
+
   useEffect(() => {
-    load()
-    fetch("/api/vendors").then(async (r) => setVendors(await r.json()))
-    fetch("/api/admin/pickups").then(async (r) => setAdminPickups(await r.json()))
-    fetch("/api/analytics/volume-trends").then(async (r) => setVolumeTrends(await r.json()))
-    fetch("/api/analytics/category-distribution").then(async (r) => setCatDist(await r.json()))
-    fetch("/api/analytics/recovery-rate").then(async (r) => setRecovery(await r.json()))
-    fetch("/api/analytics/status-distribution").then(async (r) => setStatusDist(await r.json()))
-    fetch("/api/analytics/disposition-distribution").then(async (r) => setDispositionDist(await r.json()))
-    fetch("/api/analytics/items-by-date").then(async (r) => setItemsByDate(await r.json()))
+    // Wrap everything in try-catch for better error handling
+    const loadData = async () => {
+      try {
+        await load()
+      } catch (error) {
+        console.error('Error loading admin data:', error)
+      }
+
+      // Load all other data with individual error handling
+      const dataPromises = [
+        fetchAuctions().catch(console.error),
+        fetch("/api/vendors").then(async (r) => r.ok ? setVendors(await r.json()) : null).catch(console.error),
+        fetch("/api/admin/pickups").then(async (r) => r.ok ? setAdminPickups(await r.json()) : null).catch(console.error),
+        fetch("/api/analytics/volume-trends").then(async (r) => r.ok ? setVolumeTrends(await r.json()) : null).catch(console.error),
+        fetch("/api/analytics/category-distribution").then(async (r) => r.ok ? setCatDist(await r.json()) : null).catch(console.error),
+        fetch("/api/analytics/recovery-rate").then(async (r) => r.ok ? setRecovery(await r.json()) : null).catch(console.error),
+        fetch("/api/analytics/status-distribution").then(async (r) => r.ok ? setStatusDist(await r.json()) : null).catch(console.error),
+        fetch("/api/analytics/disposition-distribution").then(async (r) => r.ok ? setDispositionDist(await r.json()) : null).catch(console.error),
+        fetch("/api/analytics/items-by-date").then(async (r) => r.ok ? setItemsByDate(await r.json()) : null).catch(console.error),
+      ]
+
+      await Promise.allSettled(dataPromises)
+    }
+
+    loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -142,6 +223,34 @@ export default function Page() {
     return items.filter((i) => [i.name, i.description, i.id, i.reported_by].filter(Boolean).join(" ").toLowerCase().includes(qq))
   }, [items, q])
 
+  // Auction helper functions
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "active": return "bg-green-500"
+      case "completed": return "bg-blue-500"
+      case "cancelled": return "bg-red-500"
+      default: return "bg-gray-500"
+    }
+  }
+
+  const getTimeRemaining = (endTime: string) => {
+    const now = new Date()
+    const end = new Date(endTime)
+    
+    if (now > end) return "Expired"
+    return `${formatDistanceToNow(end)} remaining`
+  }
+
+  const getTotalRevenue = (auctions: Auction[]) => {
+    return auctions
+      .filter(a => a.status === "completed" && a.current_highest_bid)
+      .reduce((sum, a) => sum + (a.current_highest_bid || 0), 0)
+  }
+
+  const activeAuctions = auctions.filter(a => a.status === "active")
+  const completedAuctions = auctions.filter(a => a.status === "completed")
+  const cancelledAuctions = auctions.filter(a => a.status === "cancelled")
+
   const selectable = filtered.filter((i) => i.status === "Reported")
 
   const selectedIds = useMemo(() => Object.entries(selected).filter(([, v]) => v).map(([k]) => k), [selected])
@@ -151,8 +260,9 @@ export default function Page() {
       <AppNav />
       <section className="container mx-auto py-4 sm:py-8 space-y-4 sm:space-y-8 px-4 max-w-7xl">
         <Tabs defaultValue="items">
-          <TabsList className="grid w-full grid-cols-2 grid-rows-3 md:grid-cols-5 md:grid-rows-1 gap-2 sm:gap-3 p-2 sm:p-3 bg-[#9ac37e]/10 rounded-none border-2 border-[#3e5f44] h-auto">
+          <TabsList className="grid w-full grid-cols-2 grid-rows-3 md:grid-cols-6 md:grid-rows-1 gap-2 sm:gap-3 p-2 sm:p-3 bg-[#9ac37e]/10 rounded-none border-2 border-[#3e5f44] h-auto">
             <TabsTrigger value="items" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Items</TabsTrigger>
+            <TabsTrigger value="auctions" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Auctions</TabsTrigger>
             <TabsTrigger value="pickups" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Pickups</TabsTrigger>
             <TabsTrigger value="analytics" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Analytics</TabsTrigger>
             <TabsTrigger value="reports" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Reports</TabsTrigger>
@@ -245,8 +355,8 @@ export default function Page() {
                                   )}
                                 </td>
                                 <td className="w-[120px] px-3 py-3 border-r border-border/30">
-                                  <div className="text-xs text-muted-foreground font-mono truncate overflow-hidden" title={i.id}>
-                                    {i.id.slice(0, 10)}...
+                                  <div className="text-xs text-muted-foreground font-mono truncate overflow-hidden" title={String(i.id || '')}>
+                                    {String(i.id || '').slice(0, 10)}...
                                   </div>
                                 </td>
                                 <td className="w-[200px] px-3 py-3 border-r border-border/30">
@@ -342,7 +452,7 @@ export default function Page() {
                                   <div className="flex-1 min-w-0">
                                     <div className="font-medium text-sm truncate">{i.name}</div>
                                     <div className="text-xs text-muted-foreground font-mono">
-                                      ID: {i.id.slice(0, 12)}...
+                                      ID: {String(i.id || '').slice(0, 12)}...
                                     </div>
                                   </div>
                                 </div>
@@ -429,6 +539,143 @@ export default function Page() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="auctions" className="space-y-4">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card className="border-[#9ac37e]/20">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-[#3e5f44]">Total Auctions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-[#3e5f44]">{auctions.length}</div>
+                </CardContent>
+              </Card>
+              
+              <Card className="border-[#9ac37e]/20">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-[#3e5f44]">Active Auctions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">{activeAuctions.length}</div>
+                </CardContent>
+              </Card>
+              
+              <Card className="border-[#9ac37e]/20">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-[#3e5f44]">Completed</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600">{completedAuctions.length}</div>
+                </CardContent>
+              </Card>
+              
+              <Card className="border-[#9ac37e]/20">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-[#3e5f44]">Total Revenue</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">₹{getTotalRevenue(completedAuctions).toLocaleString()}</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
+              <CardHeader>
+                <CardTitle className="text-[#3e5f44]">Recent Auction Activity</CardTitle>
+                <CardDescription className="text-[#3e5f44]/70">Latest auction updates and bidding activity</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {auctions.length === 0 ? (
+                  <div className="text-center py-8 text-[#3e5f44]/70">
+                    No auctions found. Auctions will appear here when users start creating them.
+                  </div>
+                ) : (
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {auctions.slice(0, 5).map((auction) => {
+                      // Safety check for auction data
+                      if (!auction || !auction.id) return null
+                      
+                      return (
+                        <div key={auction.id} className="border border-[#9ac37e]/20 rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <h4 className="font-semibold text-[#3e5f44]">
+                                Auction #{String(auction.id || '').slice(0, 8)}...
+                              </h4>
+                              <p className="text-sm text-[#3e5f44]/70">
+                                Item: {auction.item_id} • Created by: {String(auction.created_by || '').slice(0, 8)}...
+                              </p>
+                            </div>
+                          <Badge className={getStatusColor(auction.status)}>
+                            {auction.status}
+                          </Badge>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <span className="text-[#3e5f44]/70">Starting Price:</span>
+                            <div className="font-semibold text-[#3e5f44]">₹{auction.starting_price}</div>
+                          </div>
+                          <div>
+                            <span className="text-[#3e5f44]/70">Current Highest:</span>
+                            <div className="font-semibold text-green-600">
+                              {auction.current_highest_bid ? `₹${auction.current_highest_bid}` : "No bids"}
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-[#3e5f44]/70">Total Bids:</span>
+                            <div className="font-semibold text-[#3e5f44]">{bids[auction.id]?.length || 0}</div>
+                          </div>
+                          <div>
+                            <span className="text-[#3e5f44]/70">Time Status:</span>
+                            <div className="font-semibold text-[#3e5f44]">
+                              {auction.status === "active" ? getTimeRemaining(auction.end_time) : "Ended"}
+                            </div>
+                          </div>
+                        </div>
+
+                        {bids[auction.id] && bids[auction.id].length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-[#9ac37e]/20">
+                            <div className="text-xs text-[#3e5f44]/70 mb-2">Recent Bids:</div>
+                            <div className="space-y-1">
+                              {bids[auction.id].slice(0, 3).map((bid) => (
+                                <div key={bid.id} className="flex justify-between items-center text-xs">
+                                  <span className="text-[#3e5f44]/70">
+                                    Vendor: {String(bid.vendor_id || '').slice(0, 8)}...
+                                  </span>
+                                  <span className="font-semibold text-[#3e5f44]">₹{bid.amount}</span>
+                                  <span className="text-[#3e5f44]/70">
+                                    {formatDistanceToNow(new Date(bid.bid_time))} ago
+                                  </span>
+                                  <Badge variant={bid.status === "winning" ? "default" : "secondary"} className="text-xs">
+                                    {bid.status}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }).filter(Boolean)}
+                    
+                    {auctions.length > 5 && (
+                      <div className="text-center pt-4">
+                        <Button 
+                          onClick={() => router.push('/admin/auctions')}
+                          variant="outline"
+                          className="border-[#3e5f44] text-[#3e5f44] hover:bg-[#3e5f44] hover:text-white"
+                        >
+                          View All Auctions ({auctions.length})
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="pickups" className="space-y-4">
             <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
               <CardHeader>
@@ -444,7 +691,7 @@ export default function Page() {
                       <div key={pickup.id} className="border rounded-lg p-4 space-y-3">
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="font-medium">Pickup #{pickup.id.slice(0, 8)}</div>
+                            <div className="font-medium">Pickup #{String(pickup.id || '').slice(0, 8)}</div>
                             <div className="text-sm text-muted-foreground">
                               Scheduled: {new Date(pickup.scheduled_date).toLocaleDateString()}
                             </div>
@@ -472,16 +719,16 @@ export default function Page() {
                           </div>
 
                           <div>
-                            <div className="text-sm font-medium mb-2">Items ({pickup.items.length})</div>
+                            <div className="text-sm font-medium mb-2">Items ({(pickup.items || []).length})</div>
                             <div className="text-sm space-y-1">
-                              {pickup.items.slice(0, 3).map((item) => (
+                              {(pickup.items || []).slice(0, 3).map((item) => (
                                 <div key={item.id}>
                                   {item.name} <span className="text-muted-foreground">({displayCategory(item.category)})</span>
                                 </div>
                               ))}
-                              {pickup.items.length > 3 && (
+                              {(pickup.items || []).length > 3 && (
                                 <div className="text-muted-foreground">
-                                  +{pickup.items.length - 3} more items
+                                  +{(pickup.items || []).length - 3} more items
                                 </div>
                               )}
                             </div>

@@ -43,6 +43,30 @@ export type Pickup = {
   vendor_response_date?: string | null;
   vendor_response_note?: string | null;
 }
+
+export type Auction = {
+  id: string
+  item_id: string
+  created_by: string // User who created the auction
+  starting_price: number // Minimum bid amount (user price + 50)
+  current_highest_bid?: number
+  current_highest_bidder?: string // Vendor ID
+  status: "active" | "completed" | "cancelled"
+  duration_hours: number // Duration in hours
+  start_time: string // ISO date string
+  end_time: string // ISO date string
+  created_at: string
+}
+
+export type Bid = {
+  id: string
+  auction_id: string
+  vendor_id: string
+  amount: number
+  bid_time: string
+  status: "active" | "outbid" | "winning"
+}
+
 export type Campaign = { id: string; title: string; date: string; description?: string }
 
 function mapId<T extends Record<string, any>>(doc: any, extra?: Partial<T>): T {
@@ -373,6 +397,182 @@ export async function listVendorPickups(vendor_id: string): Promise<Array<{ id: 
       items: pickupItems,
     }
   })
+}
+
+// Auction Management Functions
+export async function createAuction(input: {
+  item_id: string;
+  created_by: string;
+  starting_price: number;
+  duration_hours: number;
+}): Promise<Auction> {
+  const db = await getDb()
+  const id = randomUUID()
+  const created_at = new Date().toISOString()
+  const start_time = created_at
+  const end_time = new Date(Date.now() + input.duration_hours * 60 * 60 * 1000).toISOString()
+  
+  const auction: Auction = {
+    id,
+    item_id: input.item_id,
+    created_by: input.created_by,
+    starting_price: input.starting_price,
+    current_highest_bid: undefined,
+    current_highest_bidder: undefined,
+    duration_hours: input.duration_hours,
+    start_time,
+    end_time,
+    created_at,
+    status: "active"
+  }
+  
+  await db.collection("auctions").insertOne({ _id: id as any, ...auction })
+  return auction
+}
+
+export async function listAuctions(filter?: { 
+  status?: "active" | "completed" | "cancelled"; 
+  created_by?: string;
+  item_id?: string;
+}): Promise<Auction[]> {
+  const db = await getDb()
+  const query: any = {}
+  
+  if (filter?.status) query.status = filter.status
+  if (filter?.created_by) query.created_by = filter.created_by
+  if (filter?.item_id) query.item_id = filter.item_id
+  
+  const auctions = await db.collection("auctions").find(query).sort({ created_at: -1 }).toArray()
+  return auctions.map(a => {
+    const { _id, ...rest } = a
+    return { id: String(_id), ...rest } as Auction
+  })
+}
+
+export async function getAuction(id: string): Promise<Auction | null> {
+  const db = await getDb()
+  const auction = await db.collection("auctions").findOne({ _id: id as any })
+  if (!auction) return null
+  
+  const { _id, ...rest } = auction
+  return { id: String(_id), ...rest } as Auction
+}
+
+export async function placeBid(input: {
+  auction_id: string;
+  vendor_id: string;
+  amount: number;
+}): Promise<Bid> {
+  const db = await getDb()
+  const id = randomUUID()
+  
+  // Check if auction exists and is active
+  const auction = await getAuction(input.auction_id)
+  if (!auction || auction.status !== "active") {
+    throw new Error("Auction is not active")
+  }
+  
+  // Check if auction has expired
+  if (new Date() > new Date(auction.end_time)) {
+    throw new Error("Auction has expired")
+  }
+  
+  // Check minimum bid requirement (starting price + 50Rs or current highest + 50Rs)
+  const minBid = auction.current_highest_bid 
+    ? auction.current_highest_bid + 50 
+    : auction.starting_price + 50
+    
+  if (input.amount < minBid) {
+    throw new Error(`Bid must be at least ₹${minBid}`)
+  }
+  
+  const bid_time = new Date().toISOString()
+  
+  const bid: Bid = {
+    id,
+    auction_id: input.auction_id,
+    vendor_id: input.vendor_id,
+    amount: input.amount,
+    bid_time,
+    status: "winning"
+  }
+  
+  // Mark previous highest bid as outbid
+  if (auction.current_highest_bidder) {
+    await db.collection("bids").updateMany(
+      { auction_id: input.auction_id, vendor_id: auction.current_highest_bidder },
+      { $set: { status: "outbid" } }
+    )
+  }
+  
+  // Insert new bid and update auction's current highest bid
+  await db.collection("bids").insertOne({ _id: id as any, ...bid })
+  await db.collection("auctions").updateOne(
+    { _id: input.auction_id as any },
+    { 
+      $set: { 
+        current_highest_bid: input.amount,
+        current_highest_bidder: input.vendor_id
+      } 
+    }
+  )
+  
+  return bid
+}
+
+export async function listBids(auction_id: string): Promise<Bid[]> {
+  const db = await getDb()
+  const bids = await db.collection("bids").find({ auction_id }).sort({ amount: -1, bid_time: 1 }).toArray()
+  return bids.map(b => {
+    const { _id, ...rest } = b
+    return { id: String(_id), ...rest } as Bid
+  })
+}
+
+export async function completeAuction(auction_id: string): Promise<boolean> {
+  const db = await getDb()
+  
+  // Get highest bid
+  const bids = await listBids(auction_id)
+  const winningBid = bids.length > 0 ? bids[0] : null
+  
+  if (winningBid) {
+    // Mark winning bid (should already be marked as winning)
+    await db.collection("bids").updateOne(
+      { _id: winningBid.id as any },
+      { $set: { status: "winning" } }
+    )
+    
+    // Mark other bids as outbid
+    await db.collection("bids").updateMany(
+      { auction_id, _id: { $ne: winningBid.id as any } },
+      { $set: { status: "outbid" } }
+    )
+  }
+  
+  // Mark auction as completed
+  await db.collection("auctions").updateOne(
+    { _id: auction_id as any },
+    { $set: { status: "completed" } }
+  )
+  
+  return true
+}
+
+export async function checkExpiredAuctions(): Promise<void> {
+  const db = await getDb()
+  const now = new Date().toISOString()
+  
+  // Find active auctions that have expired
+  const expiredAuctions = await db.collection("auctions").find({
+    status: "active",
+    end_time: { $lt: now }
+  }).toArray()
+  
+  // Complete each expired auction
+  for (const auction of expiredAuctions) {
+    await completeAuction(String(auction._id))
+  }
 }
 
 export async function updateVendorResponse(pickup_id: string, vendor_id: string, response: "Accepted" | "Rejected", note?: string): Promise<boolean> {

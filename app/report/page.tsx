@@ -74,13 +74,30 @@ export default function ReportPage() {
   const [customPriceError, setCustomPriceError] = useState<string>("")
 
   useEffect(() => {
-    fetch("/api/departments").then(async (r) => setDepartments(await r.json()))
-    // Autofill reporter email if logged in
-    fetch("/api/auth/session").then(async (r) => {
-      const s = await r.json().catch(() => null)
-      const email = s?.user?.email || ""
-      if (email) setForm((f) => (f.reported_by ? f : { ...f, reported_by: email }))
-    }).catch(() => {})
+    // Use Promise.allSettled for parallel loading with better error handling
+    const loadInitialData = async () => {
+      try {
+        const results = await Promise.allSettled([
+          fetch("/api/departments").then(r => r.ok ? r.json() : []),
+          fetch("/api/auth/session").then(r => r.ok ? r.json() : null).catch(() => null)
+        ])
+
+        if (results[0].status === 'fulfilled') {
+          setDepartments(results[0].value)
+        } else {
+          console.error('Error loading departments:', results[0].reason)
+        }
+        
+        if (results[1].status === 'fulfilled' && results[1].value?.user?.email) {
+          const email = results[1].value.user.email
+          setForm((f) => f.reported_by ? f : { ...f, reported_by: email })
+        }
+      } catch (error) {
+        console.error('Error in initial data loading:', error)
+      }
+    }
+
+    loadInitialData()
   }, [])
 
   // Auto-fill expiry_years with user_lifespan
@@ -255,9 +272,23 @@ export default function ReportPage() {
       }
       const item: Item = await res.json()
       setCreated(item)
-      // Generate QR code with just the item ID instead of full URL
-      const dataUrl = await QRCode.toDataURL(item.id, { margin: 1, scale: 6 })
+      
+      // Generate QR code with optimized settings for performance
+      const dataUrl = await QRCode.toDataURL(item.id, { 
+        margin: 1, 
+        scale: 4, // Reduced from 6 for faster generation
+        width: 200, // Set explicit width for consistent sizing
+        errorCorrectionLevel: 'M' // Medium error correction for balance
+      })
       setQrDataUrl(dataUrl)
+      
+      // Auto-scroll to top of page after QR code creation
+      requestAnimationFrame(() => {
+        window.scrollTo({ 
+          top: 0, 
+          behavior: 'smooth' 
+        })
+      })
     } catch (error) {
       console.error('Error submitting form:', error)
       alert("Failed to create item")
@@ -603,7 +634,7 @@ export default function ReportPage() {
               </form>
             </CardContent>
           </Card>
-          <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
+          <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200" id="qr-section">
             <CardHeader>
               <CardTitle>QR Tag</CardTitle>
               <CardDescription>Print and attach this QR to the item.</CardDescription>
@@ -617,13 +648,34 @@ export default function ReportPage() {
                   </div>
                   {qrDataUrl ? (
                     <>
-                      <img src={qrDataUrl || "/placeholder.svg"} alt="QR code for item" className="border rounded p-2 bg-white" />
+                      <img 
+                        src={qrDataUrl || "/placeholder.svg"} 
+                        alt="QR code for item" 
+                        className="border rounded p-2 bg-white" 
+                        width="200" 
+                        height="200"
+                        loading="lazy"
+                        style={{ imageRendering: 'pixelated' }}
+                      />
                       <a href={qrDataUrl} download={`ewaste-${created.id}.png`} className="text-sm underline inline-block w-full sm:w-auto text-center sm:text-left">Download QR</a>
                     </>
                   ) : (
                     <div className="text-sm text-muted-foreground">Generating QR...</div>
                   )}
                   <div className="text-sm text-muted-foreground">Item ID: {created.id}</div>
+                  
+                  {/* Add Start Auction Button */}
+                  <div className="w-full pt-4 border-t border-gray-200">
+                    <Button
+                      onClick={() => window.location.href = `/start-auction/${created.id}`}
+                      className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                    >
+                      🏆 Start Auction for This Item
+                    </Button>
+                    <div className="text-xs text-center text-gray-500 mt-2">
+                      Let vendors bid on your item to get the best price
+                    </div>
+                  </div>
                 </>
               ) : (
                 <div className="text-muted-foreground text-sm">Submit the form to see the QR code here.</div>
