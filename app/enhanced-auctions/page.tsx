@@ -14,6 +14,35 @@ import { PageCard } from "@/components/page-card"
 import { useAuctionUpdates, useVendorNotifications } from "@/hooks/use-socket"
 import { useToast } from "@/hooks/use-toast"
 import { AlertCircle, Clock, DollarSign, Gavel, Timer, Zap } from "lucide-react"
+import { formatItemDetails, getReporterInfo } from "@/lib/utils/item-data-utils"
+
+type EwasteItem = {
+  id: string
+  name: string
+  description?: string
+  category: string
+  status: string
+  department_id: number
+  reported_by: string
+  reported_date: string
+  disposed_date?: string | null
+  disposition: string | null
+  qr_code_url: string
+  brand?: string
+  build_quality?: number
+  user_lifespan?: number
+  usage_pattern?: "Light" | "Moderate" | "Heavy"
+  expiry_years?: number
+  condition?: number
+  original_price?: number
+  used_duration?: number
+  current_price?: number
+  predicted_price?: number
+  price_confirmed?: boolean
+  reporter_name?: string
+  reporter_email?: string
+  reporter_role?: string
+}
 
 interface EnhancedAuction {
   id: string
@@ -30,6 +59,7 @@ interface EnhancedAuction {
   status: "active" | "completed" | "cancelled"
   total_bids: number
   soft_close_triggered: boolean
+  item?: EwasteItem
 }
 
 interface ProxyBid {

@@ -13,6 +13,35 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatDistanceToNow } from "date-fns"
+import { formatItemDetails, getReporterInfo } from "@/lib/utils/item-data-utils"
+
+type EwasteItem = {
+  id: string
+  name: string
+  description?: string
+  category: string
+  status: string
+  department_id: number
+  reported_by: string
+  reported_date: string
+  disposed_date?: string | null
+  disposition: string | null
+  qr_code_url: string
+  brand?: string
+  build_quality?: number
+  user_lifespan?: number
+  usage_pattern?: "Light" | "Moderate" | "Heavy"
+  expiry_years?: number
+  condition?: number
+  original_price?: number
+  used_duration?: number
+  current_price?: number
+  predicted_price?: number
+  price_confirmed?: boolean
+  reporter_name?: string
+  reporter_email?: string
+  reporter_role?: string
+}
 
 type Auction = {
   id: string
@@ -26,6 +55,7 @@ type Auction = {
   start_time: string
   end_time: string
   created_at: string
+  item?: EwasteItem
 }
 
 type Bid = {
@@ -217,9 +247,27 @@ export default function VendorAuctionsPage() {
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <div>
-                          <CardTitle className="text-lg">Item ID: {auction.item_id}</CardTitle>
+                          <CardTitle className="text-lg">
+                            {auction.item?.name || `Item ID: ${auction.item_id}`}
+                          </CardTitle>
                           <CardDescription>
-                            Started {formatDistanceToNow(new Date(auction.start_time))} ago
+                            {auction.item?.description && (
+                              <div className="mb-1">{auction.item.description}</div>
+                            )}
+                            <div className="flex flex-wrap gap-2 text-sm">
+                              {auction.item?.category && (
+                                <Badge variant="outline">{auction.item.category}</Badge>
+                              )}
+                              {auction.item?.brand && (
+                                <Badge variant="outline">{auction.item.brand}</Badge>
+                              )}
+                              {auction.item?.condition && (
+                                <Badge variant="outline">Condition: {auction.item.condition}/10</Badge>
+                              )}
+                            </div>
+                            <div className="mt-2 text-xs text-gray-500">
+                              Started {formatDistanceToNow(new Date(auction.start_time))} ago
+                            </div>
                           </CardDescription>
                         </div>
                         <div className="text-right">
@@ -231,6 +279,58 @@ export default function VendorAuctionsPage() {
                       </div>
                     </CardHeader>
                     <CardContent>
+                      {/* Item Details Section - Only show real user data */}
+                      {auction.item && (() => {
+                        const itemDetails = formatItemDetails(auction.item)
+                        const reporterInfo = getReporterInfo(auction.item)
+                        
+                        return itemDetails.length > 0 || reporterInfo ? (
+                          <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                            <h4 className="font-semibold text-sm text-gray-700 mb-3">Item Details</h4>
+                            
+                            {itemDetails.length > 0 && (
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                {itemDetails.map((detail, index) => (
+                                  <div key={index}>
+                                    <span className="font-medium text-gray-600">{detail.label}:</span>
+                                    <div>{detail.value}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            
+                            {/* Reporter Information - Only if available */}
+                            {reporterInfo && (
+                              <div className="mt-4 pt-3 border-t border-gray-200">
+                                <span className="font-medium text-gray-600 text-sm">Reported by:</span>
+                                <div className="mt-1 text-sm">
+                                  {reporterInfo.name && (
+                                    <div className="font-medium">{reporterInfo.name}</div>
+                                  )}
+                                  {reporterInfo.role && (
+                                    <Badge variant="secondary" className="text-xs mt-1">
+                                      {reporterInfo.role}
+                                    </Badge>
+                                  )}
+                                  <div className="text-gray-500 text-xs mt-1">{reporterInfo.email}</div>
+                                  {auction.item.reported_date && (
+                                    <div className="text-gray-500 text-xs">
+                                      Reported on {new Date(auction.item.reported_date).toLocaleDateString()}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                            <h4 className="font-semibold text-sm text-gray-700 mb-2">Item Details</h4>
+                            <p className="text-sm text-gray-500">Basic item information available. Detailed specifications will be provided upon contact.</p>
+                          </div>
+                        )
+                      })()}
+                      
+                      {/* Bidding Section */}
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                         <div>
                           <h4 className="font-semibold text-sm text-gray-600">Starting Price</h4>

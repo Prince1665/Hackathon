@@ -589,6 +589,125 @@ export async function listAuctions(filter?: {
   })
 }
 
+export async function listAuctionsWithItemDetails(filter?: { 
+  status?: "active" | "completed" | "cancelled"; 
+  created_by?: string;
+  item_id?: string;
+}): Promise<Array<Auction & { 
+  item?: EwasteItem & { reporter_name?: string; reporter_email?: string; reporter_role?: string };
+}>> {
+  const db = await getDb()
+  const query: any = {}
+  
+  console.log("listAuctionsWithItemDetails called with filter:", filter)
+  
+  // Case-insensitive status filtering
+  if (filter?.status) {
+    query.status = { $regex: new RegExp(`^${filter.status}$`, 'i') }
+  }
+  if (filter?.created_by) query.created_by = filter.created_by
+  if (filter?.item_id) query.item_id = filter.item_id
+  
+  console.log("MongoDB query:", query)
+  const auctions = await db.collection("auctions").find(query).sort({ created_at: -1 }).toArray()
+  console.log(`Found ${auctions.length} auctions from database`)
+  
+  // Get all unique item IDs
+  const itemIds = [...new Set(auctions.map(a => a.item_id))]
+  console.log("Item IDs to fetch:", itemIds)
+  
+  // Fetch all items for these auctions
+  const items = await db.collection("items").find({ 
+    _id: { $in: itemIds } 
+  }).toArray()
+  console.log(`Found ${items.length} items for auctions`)
+  
+  // Create item lookup map
+  const itemMap = new Map<string, any>()
+  items.forEach(item => {
+    const itemWithId = mapId<EwasteItem>(item)
+    itemMap.set(String(item._id), itemWithId)
+    console.log(`Mapped item ${String(item._id)}: ${itemWithId.name} (${itemWithId.category})`)
+  })
+  
+  // Get unique reporter IDs from items
+  const reporterIds = [...new Set(items.map(item => item.reported_by).filter(Boolean))]
+  console.log("Reporter IDs to fetch:", reporterIds)
+  
+  // Fetch reporter details (prioritize email lookup)
+  let reporters: any[] = []
+  if (reporterIds.length > 0) {
+    try {
+      // First try email lookup (since reported_by fields contain emails)
+      const emailIds = reporterIds.filter(id => String(id).includes('@'))
+      if (emailIds.length > 0) {
+        reporters = await db.collection("users").find({ 
+          email: { $in: emailIds } 
+        }).project({ _id: 1, email: 1, name: 1, role: 1 }).toArray()
+        console.log(`Found ${reporters.length} reporters via email lookup`)
+      }
+      
+      // For any remaining IDs that might be ObjectIds
+      const remainingIds = reporterIds.filter(id => !String(id).includes('@'))
+      if (remainingIds.length > 0 && reporters.length < reporterIds.length) {
+        const objectIds = remainingIds.map(id => {
+          try {
+            return new ObjectId(String(id))
+          } catch {
+            return null
+          }
+        }).filter(Boolean) as ObjectId[]
+        
+        if (objectIds.length > 0) {
+          const objectIdReporters = await db.collection("users").find({ 
+            _id: { $in: objectIds } 
+          }).project({ _id: 1, email: 1, name: 1, role: 1 }).toArray()
+          reporters = [...reporters, ...objectIdReporters]
+        }
+      }
+    } catch (error) {
+      console.log("Error fetching reporters:", error)
+    }
+  }
+  
+  // Create reporter lookup map
+  const reporterMap = new Map<string, any>()
+  reporters.forEach(reporter => {
+    const id = String(reporter._id)
+    reporterMap.set(id, reporter)
+    reporterMap.set(reporter.email, reporter) // Also map by email for fallback
+  })
+  console.log(`Found ${reporters.length} reporters, created ${reporterMap.size} reporter mappings`)
+  
+  // Combine auction data with item details and reporter info
+  const results = auctions.map(a => {
+    const { _id, ...rest } = a
+    const auction = { id: String(_id), ...rest } as Auction
+    const item = itemMap.get(a.item_id)
+    
+    console.log(`Processing auction ${String(_id)}, item_id: ${a.item_id}, found item: ${!!item}`)
+    
+    if (item && item.reported_by) {
+      const reporter = reporterMap.get(String(item.reported_by)) || reporterMap.get(item.reported_by)
+      console.log(`Item reported_by: ${item.reported_by}, found reporter: ${!!reporter}`)
+      if (reporter) {
+        item.reporter_name = reporter.name
+        item.reporter_email = reporter.email
+        item.reporter_role = reporter.role
+        console.log(`Added reporter info: ${reporter.name} (${reporter.role})`)
+      }
+    }
+    
+    return {
+      ...auction,
+      item
+    }
+  })
+  
+  console.log(`Returning ${results.length} auctions with item details`)
+  return results
+}
+
 export async function getAuction(id: string): Promise<Auction | null> {
   const db = await getDb()
   const auction = await db.collection("auctions").findOne({ _id: id as any })

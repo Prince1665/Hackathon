@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createAuction, listAuctions, checkExpiredAuctions } from "@/lib/server/data-mongo"
+import { createAuction, listAuctionsWithItemDetails, checkExpiredAuctions } from "@/lib/server/data-mongo"
 import { getSession } from "@/lib/server/auth"
 
 export async function GET(request: NextRequest) {
@@ -17,7 +17,20 @@ export async function GET(request: NextRequest) {
     if (created_by) filter.created_by = created_by
     if (item_id) filter.item_id = item_id
     
-    const auctions = await listAuctions(filter)
+    console.log("Fetching auctions with filter:", filter)
+    const auctions = await listAuctionsWithItemDetails(filter)
+    console.log(`Found ${auctions.length} auctions`)
+    if (auctions.length > 0) {
+      console.log("Sample auction:", {
+        id: auctions[0].id,
+        item_id: auctions[0].item_id,
+        has_item: !!auctions[0].item,
+        item_name: auctions[0].item?.name,
+        item_category: auctions[0].item?.category,
+        reporter_name: auctions[0].item?.reporter_name
+      })
+    }
+    
     return NextResponse.json(auctions)
   } catch (error) {
     console.error("Error fetching auctions:", error)
