@@ -329,6 +329,7 @@ export default function ReportPage() {
                     className="w-full min-h-[80px] resize-y"
                   />
                 </div>
+                
                 <div className="grid gap-2">
                   <Label className="text-sm font-medium">Category</Label>
                   <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
@@ -345,6 +346,7 @@ export default function ReportPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                
                 <div className="grid gap-2">
                   <Label className="text-sm font-medium">Disposition</Label>
                   <Select value={form.disposition} onValueChange={(v) => setForm((f) => ({ ...f, disposition: v }))}>

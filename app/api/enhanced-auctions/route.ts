@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createAuction, listAuctions, checkExpiredAuctions } from "@/lib/server/data-mongo"
+import { createEnhancedAuction, listEnhancedAuctions } from "@/lib/server/auction-proxy"
 import { getSession } from "@/lib/server/auth"
 
 export async function GET(request: NextRequest) {
   try {
-    // Check for expired auctions on every request
-    await checkExpiredAuctions()
-    
     const { searchParams } = new URL(request.url)
     const status = searchParams.get("status") as "active" | "completed" | "cancelled" | null
     const created_by = searchParams.get("created_by")
@@ -17,10 +14,10 @@ export async function GET(request: NextRequest) {
     if (created_by) filter.created_by = created_by
     if (item_id) filter.item_id = item_id
     
-    const auctions = await listAuctions(filter)
+    const auctions = await listEnhancedAuctions(filter)
     return NextResponse.json(auctions)
   } catch (error) {
-    console.error("Error fetching auctions:", error)
+    console.error("Error fetching enhanced auctions:", error)
     return NextResponse.json({ error: "Failed to fetch auctions" }, { status: 500 })
   }
 }
@@ -33,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.json()
-    const { item_id, starting_price, duration_hours } = body
+    const { item_id, starting_price, duration_hours, min_increment } = body
     
     if (!item_id || !starting_price || !duration_hours) {
       return NextResponse.json({ 
@@ -47,16 +44,17 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const auction = await createAuction({
+    const auction = await createEnhancedAuction({
       item_id,
       created_by: session.user.user_id,
       starting_price: Number(starting_price),
-      duration_hours: Number(duration_hours)
+      duration_hours: Number(duration_hours),
+      min_increment: min_increment ? Number(min_increment) : 50
     })
     
     return NextResponse.json(auction, { status: 201 })
   } catch (error) {
-    console.error("Error creating auction:", error)
+    console.error("Error creating enhanced auction:", error)
     return NextResponse.json({ error: "Failed to create auction" }, { status: 500 })
   }
 }

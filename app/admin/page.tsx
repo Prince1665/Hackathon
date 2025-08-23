@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { SchedulePickupDialog } from "@/components/schedule-pickup-dialog"
+import { SchedulePickupDialog, ScheduleWinnerPickupDialog } from "@/components/schedule-pickup-dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -18,10 +18,10 @@ import { Separator } from "@/components/ui/separator"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts"
 import { format, formatDistanceToNow } from "date-fns"
-import { CalendarIcon } from "lucide-react"
+import { useSocketIO } from "@/hooks/use-socket"
+import { CalendarIcon, Gavel, Timer, Trophy, UserCheck } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { calculateEnvironmentalImpact, formatImpactForDisplay, type EnvironmentalImpact } from "@/lib/environmental-impact"
-import { EnvironmentalImpactDashboard } from "@/components/environmental-impact-dashboard"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 type Item = {
   id: string
@@ -77,20 +77,92 @@ export default function Page() {
   const [q, setQ] = useState("")
   const [status, setStatus] = useState<string>("")
   const [category, setCategory] = useState<string>("")
-  const [environmentalImpact, setEnvironmentalImpact] = useState<EnvironmentalImpact | null>(null)
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   
   // Helper function to display category with better names
   const displayCategory = (category: string) => {
     return category === "TV" ? "TV / Monitor" : category
   }
   
-  // Helper function to display price
+  // Helper function to display price with auction information
   const displayPrice = (item: Item) => {
     const currentPrice = item.current_price || 0;
     const predictedPrice = item.predicted_price || 0;
     
-    // If no price at all, show zero
+    // Find active auction for this item
+    const activeAuction = auctions.find(a => a.item_id === item.id && a.status === "active")
+    const completedAuction = auctions.find(a => a.item_id === item.id && a.status === "completed")
+    
+    // Get the highest bid for active auction
+    const highestBid = activeAuction ? (activeAuction.current_highest_bid || activeAuction.starting_price) : 0
+    
+    // Get the winner info for completed auction
+    const winnerInfo = completedAuction && completedAuction.current_highest_bidder ? {
+      finalPrice: completedAuction.current_highest_bid || completedAuction.starting_price,
+      winnerId: String(completedAuction.current_highest_bidder),
+      auctionId: completedAuction.id
+    } : null
+    
+    // If there's an active auction, show real-time bidding info
+    if (activeAuction) {
+      const timeRemaining = new Date(activeAuction.end_time).getTime() - Date.now()
+      const isExpiringSoon = timeRemaining <= 300000 // 5 minutes
+      
+      return (
+        <div className="text-right">
+          <div className="flex items-center justify-end gap-1 mb-1">
+            <Gavel className="h-3 w-3 text-green-600" />
+            <Badge variant="outline" className="text-[8px] px-1 py-0 border-green-600 text-green-600">
+              LIVE
+            </Badge>
+          </div>
+          <div className="text-xs font-bold text-green-600">
+            ₹{highestBid.toLocaleString()}
+          </div>
+          <div className="text-[8px] text-gray-500">
+            {timeRemaining > 0 ? (
+              <span className={isExpiringSoon ? "text-red-600 font-medium" : ""}>
+                <Timer className="inline h-2 w-2 mr-1" />
+                {isExpiringSoon ? "Ending Soon!" : `${Math.floor(timeRemaining / (1000 * 60 * 60))}h left`}
+              </span>
+            ) : "Auction Ended"}
+          </div>
+          {currentPrice > 0 && (
+            <div className="text-[8px] text-gray-400 mt-1">
+              Est: ₹{currentPrice.toLocaleString()}
+            </div>
+          )}
+        </div>
+      )
+    }
+    
+    // If there's a completed auction, show winner info
+    if (winnerInfo) {
+      return (
+        <div className="text-right">
+          <div className="flex items-center justify-end gap-1 mb-1">
+            <Trophy className="h-3 w-3 text-yellow-600" />
+            <Badge variant="outline" className="text-[8px] px-1 py-0 border-yellow-600 text-yellow-600">
+              SOLD
+            </Badge>
+          </div>
+          <div className="text-xs font-bold text-yellow-600">
+            ₹{winnerInfo.finalPrice.toLocaleString()}
+          </div>
+          <div className="text-[8px] text-gray-500 truncate">
+            Winner: {winnerInfo.winnerId ? String(winnerInfo.winnerId).slice(0, 8) : 'N/A'}...
+          </div>
+          <div className="mt-1">
+            <ScheduleWinnerPickupDialog 
+              item={item} 
+              winnerInfo={winnerInfo}
+              onPickupScheduled={() => load()}
+            />
+          </div>
+        </div>
+      )
+    }
+    
+    // Default price display (no auction)
     if (!currentPrice && !predictedPrice) {
       return <div className="text-xs">₹0</div>;
     }
@@ -104,7 +176,7 @@ export default function Page() {
           </div>
         )}
       </div>
-    );
+    )
   }
   const [disp, setDisp] = useState<string>("")
   const [selected, setSelected] = useState<Record<string, boolean>>({})
@@ -130,27 +202,45 @@ export default function Page() {
   const [auctions, setAuctions] = useState<Auction[]>([])
   const [bids, setBids] = useState<{ [auctionId: string]: Bid[] }>({})
 
+  // Set up real-time auction updates (simplified for admin dashboard)
+  const { socket } = useSocketIO()
+  
+  useEffect(() => {
+    if (socket) {
+      const handleAuctionUpdate = (data: any) => {
+        // Update auction in our local state
+        setAuctions(prev => prev.map(auction => 
+          auction.id === data.auctionId 
+            ? { ...auction, current_highest_bid: data.currentHighestBid, current_highest_bidder: data.currentHighestBidder }
+            : auction
+        ))
+      }
+
+      const handleAuctionEnd = (data: any) => {
+        // Update auction status to completed
+        setAuctions(prev => prev.map(auction => 
+          auction.id === data.auctionId 
+            ? { ...auction, status: "completed", current_highest_bid: data.finalPrice, current_highest_bidder: data.winnerId }
+            : auction
+        ))
+      }
+
+      socket.on('auction_update', handleAuctionUpdate)
+      socket.on('auction_end', handleAuctionEnd)
+
+      return () => {
+        socket.off('auction_update', handleAuctionUpdate)
+        socket.off('auction_end', handleAuctionEnd)
+      }
+    }
+  }, [socket])
+
   // Chart colors
   const CHART_COLORS = ['#3e5f44', '#9ac37e', '#6b8f71', '#a8d18a', '#4a6e50', '#7ca67f', '#8fb585']
 
   // Helper function for case-insensitive status comparison
   const isStatusEqual = (status1: string | undefined, status2: string): boolean => {
     return status1?.toLowerCase().trim() === status2.toLowerCase().trim()
-  }
-
-  // Helper function to estimate weight based on category
-  const getEstimatedWeight = (category: string): number => {
-    const weightMap: Record<string, number> = {
-      'Tablet': 0.5,
-      'Microwave': 15.0,
-      'Air Conditioner': 25.0,
-      'TV': 20.0,
-      'Washing Machine': 45.0,
-      'Laptop': 2.0,
-      'Smartphone': 0.2,
-      'Refrigerator': 50.0
-    }
-    return weightMap[category] || 1.0 // default 1kg if unknown
   }
 
   async function load() {
@@ -161,22 +251,7 @@ export default function Page() {
     const res = await fetch(`/api/items?${qs.toString()}`)
     const itemsData = await res.json()
     setItems(itemsData)
-
-    // Calculate environmental impact for collected items
-    const collectedItems = itemsData.filter((item: Item) =>
-      isStatusEqual(item.status, "Collected") ||
-      isStatusEqual(item.status, "Safely Disposed")
-    )
-
-    const impactData = collectedItems.map((item: Item) => ({
-      category: item.category,
-      weight: getEstimatedWeight(item.category),
-      quantity: 1
-    }))
-
-    const impact = calculateEnvironmentalImpact(impactData)
-    setEnvironmentalImpact(impact)
-
+    
     // Also reload pickups to get updated vendor responses
     const pickupsRes = await fetch("/api/admin/pickups")
     if (pickupsRes.ok) {
@@ -849,21 +924,6 @@ export default function Page() {
               </CardContent>
             </Card>
 
-            {/* Environmental Impact Section */}
-            {environmentalImpact && (
-              <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
-                <CardHeader>
-                  <CardTitle className="text-[#3e5f44]">Environmental Impact Analysis</CardTitle>
-                  <CardDescription className="text-[#3e5f44]/70">
-                    Comprehensive environmental impact from e-waste collection and proper disposal
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <EnvironmentalImpactDashboard impact={environmentalImpact} />
-                </CardContent>
-              </Card>
-            )}
-
             <div className="grid lg:grid-cols-2 gap-4">
               {/* Category Distribution Chart */}
               <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
@@ -1047,7 +1107,6 @@ export default function Page() {
 function ReportsSection() {
   const [from, setFrom] = useState<Date>()
   const [to, setTo] = useState<Date>()
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
 
   // Get current date and calculate year range dynamically
   const currentDate = new Date()
@@ -1064,51 +1123,19 @@ function ReportsSection() {
     }
   }
 
-  async function testPdfLibraries() {
-    try {
-      console.log("🧪 Testing PDF libraries...")
-      const { jsPDF } = await import("jspdf")
-      const autoTableModule = await import("jspdf-autotable")
-
-      const doc = new jsPDF()
-      doc.text("Test PDF", 10, 10)
-      doc.save("test.pdf")
-
-      console.log("✅ PDF libraries working correctly!")
-      alert("PDF libraries test successful! Check your downloads for test.pdf")
-    } catch (error) {
-      console.error("❌ PDF libraries test failed:", error)
-      alert(`PDF libraries test failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
-
   async function downloadPdf() {
-    setIsGeneratingPdf(true)
-    try {
-      console.log("🔄 Starting PDF generation...")
+    const qs = new URLSearchParams()
+    if (from) qs.set("from", format(from, "yyyy-MM-dd"))
+    if (to) qs.set("to", format(to, "yyyy-MM-dd"))
+    const res = await fetch(`/api/reports/summary?${qs.toString()}`)
+    const summary = await res.json()
 
-      const qs = new URLSearchParams()
-      if (from) qs.set("from", format(from, "yyyy-MM-dd"))
-      if (to) qs.set("to", format(to, "yyyy-MM-dd"))
-
-      console.log("📡 Fetching report data...")
-      const res = await fetch(`/api/reports/summary?${qs.toString()}`)
-
-      if (!res.ok) {
-        throw new Error(`API request failed: ${res.status} ${res.statusText}`)
-      }
-
-      const summary = await res.json()
-      console.log("✅ Report data fetched successfully:", summary)
-
-      console.log("📦 Loading PDF libraries...")
-      const { jsPDF } = await import("jspdf")
-      const autoTableModule = await import("jspdf-autotable")
-      const autoTable = autoTableModule.default
-
-      console.log("📄 Creating PDF document...")
-      const doc = new jsPDF()
-      let yPosition = 20
+    const { jsPDF } = await import("jspdf")
+    // @ts-ignore
+    const { default: autoTable } = await import("jspdf-autotable")
+    
+    const doc = new jsPDF()
+    let yPosition = 20
 
     // Helper function to add page if needed
     const checkPageBreak = (requiredHeight: number) => {
@@ -1149,7 +1176,7 @@ function ReportsSection() {
     doc.text(`Report Generated: ${new Date().toLocaleString()}`, 20, yPosition + 16)
     doc.text(`Period: ${summary.from || "Beginning"} to ${summary.to || "Present"}`, 20, yPosition + 21)
     doc.text(`Total Items Processed: ${summary.total}`, 120, yPosition + 16)
-    doc.text(`Recovery Rate: ${summary.environmentalImpact?.recoveryRate || 0}%`, 120, yPosition + 21)
+    doc.text(`Recovery Rate: ${summary.environmentalImpact.recoveryRate}%`, 120, yPosition + 21)
     
     yPosition += 35
 
@@ -1166,7 +1193,7 @@ function ReportsSection() {
     doc.setFontSize(9)
     doc.setTextColor(0, 0, 0)
     doc.setFont("helvetica", "normal")
-    const summaryText = `This report presents a comprehensive analysis of e-waste management activities for the specified period, demonstrating compliance with Central Pollution Control Board (CPCB) regulations and E-Waste Management Rules 2016. The organization has processed ${summary.total} electronic items with a recovery rate of ${summary.environmentalImpact?.recoveryRate || 0}%, contributing to environmental sustainability through proper recycling and disposal practices.`
+    const summaryText = `This report presents a comprehensive analysis of e-waste management activities for the specified period, demonstrating compliance with Central Pollution Control Board (CPCB) regulations and E-Waste Management Rules 2016. The organization has processed ${summary.total} electronic items with a recovery rate of ${summary.environmentalImpact.recoveryRate}%, contributing to environmental sustainability through proper recycling and disposal practices.`
     
     const splitSummary = doc.splitTextToSize(summaryText, 170)
     doc.text(splitSummary, 20, yPosition + 16)
@@ -1256,54 +1283,6 @@ function ReportsSection() {
     
     // @ts-ignore
     yPosition = doc.lastAutoTable.finalY + 15
-
-    // Environmental Impact Analysis
-    if (summary.environmentalImpact) {
-      checkPageBreak(120)
-      doc.setFontSize(14)
-      doc.setFont("helvetica", "bold")
-      doc.setTextColor(62, 95, 68)
-      doc.text("Environmental Impact Analysis", 14, yPosition)
-      yPosition += 10
-
-      // Environmental impact summary text using API data
-      doc.setFontSize(10)
-      doc.setFont("helvetica", "normal")
-      doc.setTextColor(0, 0, 0)
-      const impactText = [
-        "The proper collection and disposal of e-waste has significant positive environmental impacts:",
-        "",
-        `• Total Items Processed: ${summary.environmentalImpact.totalProcessed} items`,
-        `• Recovery Rate: ${summary.environmentalImpact.recoveryRate}% of total items`,
-        "",
-        `• Estimated CO₂ Saved: ${summary.environmentalImpact.estimatedCO2Saved?.toFixed(2) || 0} tons CO₂ equivalent`,
-        `  (Equivalent to planting ${Math.round((summary.environmentalImpact.estimatedCO2Saved || 0) * 45)} trees annually)`,
-        "",
-        `• Energy Recovery: ${summary.environmentalImpact.estimatedEnergyRecovered || 0} kWh through recycling`,
-        `  (Enough to power an average home for ${Math.round((summary.environmentalImpact.estimatedEnergyRecovered || 0) / 30)} days)`,
-        "",
-        "Material Recovery:",
-        `• Metals: ${summary.environmentalImpact.estimatedMetalRecovered?.toFixed(1) || 0} kg recovered`,
-        `• Plastics: ${summary.environmentalImpact.estimatedPlasticRecovered?.toFixed(1) || 0} kg recovered`,
-        "",
-        `Recycled Items: ${summary.byStatus.Recycled || 0} | Refurbished Items: ${summary.byStatus.Refurbished || 0}`,
-        `Safely Disposed Items: ${summary.byStatus['Safely Disposed'] || 0}`,
-        "",
-        "This demonstrates significant compliance with CPCB environmental protection guidelines",
-        "and contributes to India's circular economy and sustainable development goals."
-      ]
-
-      impactText.forEach(line => {
-        if (yPosition > 270) {
-          doc.addPage()
-          yPosition = 20
-        }
-        doc.text(line, 14, yPosition)
-        yPosition += 5
-      })
-
-      yPosition += 10
-    }
 
     // Department-wise Analysis
     checkPageBreak(60)
@@ -1465,50 +1444,7 @@ function ReportsSection() {
       doc.text(`Page ${i} of ${totalPages}`, 180, 293)
     }
 
-      console.log("💾 Saving PDF...")
-      const filename = `CPCB_EWaste_Report_${new Date().toISOString().split('T')[0]}.pdf`
-
-      // Try to save the PDF
-      try {
-        doc.save(filename)
-        console.log("✅ PDF generated successfully:", filename)
-
-        // Show success message
-        alert("PDF report generated successfully! Check your downloads folder.")
-      } catch (saveError) {
-        console.error("❌ Error saving PDF:", saveError)
-
-        // Fallback: try to open in new window
-        const pdfBlob = doc.output('blob')
-        const url = URL.createObjectURL(pdfBlob)
-        const newWindow = window.open(url, '_blank')
-
-        if (newWindow) {
-          console.log("✅ PDF opened in new window")
-          alert("PDF generated! It should open in a new tab. You can save it from there.")
-        } else {
-          console.log("❌ Popup blocked, trying direct download")
-
-          // Create download link
-          const link = document.createElement('a')
-          link.href = url
-          link.download = filename
-          document.body.appendChild(link)
-          link.click()
-          document.body.removeChild(link)
-          URL.revokeObjectURL(url)
-
-          console.log("✅ PDF download triggered via link")
-          alert("PDF download should start automatically. If not, please check your browser's download settings.")
-        }
-      }
-
-    } catch (error) {
-      console.error("❌ Error generating PDF:", error)
-      alert(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    } finally {
-      setIsGeneratingPdf(false)
-    }
+    doc.save(`CPCB_EWaste_Report_${new Date().toISOString().split('T')[0]}.pdf`)
   }
 
   function getStatusCompliance(status: string): string {
@@ -1620,20 +1556,12 @@ function ReportsSection() {
               </PopoverContent>
             </Popover>
           </div>
-          <div className="flex items-end gap-2">
-            <Button
-              onClick={downloadPdf}
-              disabled={isGeneratingPdf}
-              className="bg-[#3e5f44] hover:bg-[#4a6e50] text-white disabled:opacity-50"
+          <div className="flex items-end">
+            <Button 
+              onClick={downloadPdf} 
+              className="bg-[#3e5f44] hover:bg-[#4a6e50] text-white"
             >
-              {isGeneratingPdf ? "Generating PDF..." : "Generate PDF Report"}
-            </Button>
-            <Button
-              onClick={testPdfLibraries}
-              variant="outline"
-              className="border-[#9ac37e] text-[#3e5f44] hover:bg-[#9ac37e]/10"
-            >
-              Test PDF
+              Generate PDF Report
             </Button>
           </div>
         </div>

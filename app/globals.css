@@ -160,3 +160,78 @@ button, input, select, textarea {
     @apply bg-background text-foreground;
   }
 }
+
+/* Consistent UI utilities */
+@layer utilities {
+  .page-spacing {
+    @apply py-6 px-4 sm:py-8 sm:px-6 lg:px-8;
+  }
+  
+  .card-spacing {
+    @apply p-4 sm:p-6;
+  }
+  
+  .form-spacing {
+    @apply space-y-4;
+  }
+  
+  .section-spacing {
+    @apply space-y-6;
+  }
+  
+  .text-heading {
+    @apply text-2xl md:text-3xl font-bold tracking-tight;
+  }
+  
+  .text-subheading {
+    @apply text-lg md:text-xl font-semibold;
+  }
+  
+  .text-body {
+    @apply text-sm md:text-base text-muted-foreground;
+  }
+  
+  .button-primary {
+    @apply bg-primary hover:bg-primary/90 text-primary-foreground;
+  }
+  
+  .button-secondary {
+    @apply bg-secondary hover:bg-secondary/80 text-secondary-foreground;
+  }
+  
+  .card-base {
+    @apply bg-card border border-border/50 shadow-sm rounded-lg;
+  }
+  
+  .card-hover {
+    @apply transition-shadow duration-200 hover:shadow-md;
+  }
+  
+  .form-field {
+    @apply space-y-2;
+  }
+  
+  .form-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+  }
+  
+  .status-badge {
+    @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium;
+  }
+  
+  .status-success {
+    @apply bg-green-100 text-green-800 dark:bg-green-800/20 dark:text-green-400;
+  }
+  
+  .status-warning {
+    @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-800/20 dark:text-yellow-400;
+  }
+  
+  .status-error {
+    @apply bg-red-100 text-red-800 dark:bg-red-800/20 dark:text-red-400;
+  }
+  
+  .status-info {
+    @apply bg-blue-100 text-blue-800 dark:bg-blue-800/20 dark:text-blue-400;
+  }
+}

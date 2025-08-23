@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { placeBid, listBids } from "@/lib/server/data-mongo"
+import { processProxyBid, listProxyBids } from "@/lib/server/auction-proxy"
 import { getSession } from "@/lib/server/auth"
 
 export async function GET(
@@ -8,10 +8,10 @@ export async function GET(
 ) {
   try {
     const auction_id = params.id
-    const bids = await listBids(auction_id)
+    const bids = await listProxyBids(auction_id)
     return NextResponse.json(bids)
   } catch (error) {
-    console.error("Error fetching bids:", error)
+    console.error("Error fetching proxy bids:", error)
     return NextResponse.json({ error: "Failed to fetch bids" }, { status: 500 })
   }
 }
@@ -28,23 +28,23 @@ export async function POST(
     
     const auction_id = params.id
     const body = await request.json()
-    const { amount } = body
+    const { max_proxy_bid } = body
     
-    if (!amount || amount <= 0) {
+    if (!max_proxy_bid || max_proxy_bid <= 0) {
       return NextResponse.json({ 
-        error: "Invalid amount - must be greater than 0" 
+        error: "Invalid max_proxy_bid - must be greater than 0" 
       }, { status: 400 })
     }
     
-    const bid = await placeBid({
+    const bid = await processProxyBid(
       auction_id,
-      vendor_id: session.user.user_id,
-      amount: Number(amount)
-    })
+      session.user.user_id,
+      Number(max_proxy_bid)
+    )
     
     return NextResponse.json(bid, { status: 201 })
   } catch (error) {
-    console.error("Error placing bid:", error)
+    console.error("Error processing proxy bid:", error)
     const message = error instanceof Error ? error.message : "Failed to place bid"
     return NextResponse.json({ error: message }, { status: 400 })
   }

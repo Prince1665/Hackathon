@@ -10,11 +10,17 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar"
 import { useEffect } from "react"
 import { format } from "date-fns"
-import { CalendarIcon } from "lucide-react"
+import { CalendarIcon, Calendar as CalendarFull } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type Item = { id: string; name: string }
 type Vendor = { id: string; company_name: string; contact_person: string; email: string; cpcb_registration_no: string }
+
+type WinnerInfo = {
+  finalPrice: number;
+  winnerId: string;
+  auctionId: string;
+}
 
 export function SchedulePickupDialog({
   items,
@@ -128,6 +134,200 @@ export function SchedulePickupDialog({
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
           <Button onClick={submit} disabled={!vendorId || !date || submitting}>
             {submitting ? "Scheduling..." : "Confirm"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export function ScheduleWinnerPickupDialog({
+  item,
+  winnerInfo,
+  onPickupScheduled,
+}: {
+  item: Item
+  winnerInfo: WinnerInfo
+  onPickupScheduled: () => Promise<void> | void
+}) {
+  const [open, setOpen] = useState(false)
+  const [date, setDate] = useState<Date>()
+  const [adminId, setAdminId] = useState<string>("")
+  const [submitting, setSubmitting] = useState(false)
+  const [winnerDetails, setWinnerDetails] = useState<Vendor | null>(null)
+
+  // Get current date and calculate year range dynamically
+  const currentDate = new Date()
+  const currentYear = currentDate.getFullYear()
+  const today = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()) // Today at 00:00:00
+  const maxDate = new Date(currentYear + 2, 11, 31) // End of year + 2 years
+
+  useEffect(() => {
+    fetch("/api/auth/session").then(async (r) => {
+      const s = await r.json()
+      setAdminId(s?.user?.user_id || "")
+    })
+  }, [])
+
+  // Fetch winner details when dialog opens
+  useEffect(() => {
+    if (open && winnerInfo.winnerId) {
+      console.log('Fetching vendor details for ID:', winnerInfo.winnerId)
+      fetch(`/api/vendors/${winnerInfo.winnerId}`)
+        .then(r => {
+          if (!r.ok) {
+            throw new Error(`HTTP ${r.status}`)
+          }
+          return r.json()
+        })
+        .then(vendor => {
+          console.log('Vendor details fetched:', vendor)
+          setWinnerDetails(vendor)
+        })
+        .catch(error => {
+          console.error('Error fetching vendor details:', error)
+          setWinnerDetails(null)
+        })
+    }
+  }, [open, winnerInfo.winnerId])
+
+  async function submit() {
+    if (!date || !winnerInfo.winnerId) return
+    setSubmitting(true)
+    
+    const res = await fetch("/api/pickups", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        vendor_id: winnerInfo.winnerId,
+        admin_id: adminId || "unknown-admin",
+        scheduled_date: format(date, "yyyy-MM-dd"),
+        item_ids: [item.id],
+        auction_id: winnerInfo.auctionId,
+        final_price: winnerInfo.finalPrice,
+      }),
+    })
+    
+    setSubmitting(false)
+    if (res.ok) {
+      setOpen(false)
+      await onPickupScheduled()
+    } else {
+      alert("Failed to schedule pickup for auction winner")
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="text-[8px] px-2 py-1 h-5 border-yellow-600 text-yellow-600 hover:bg-yellow-50"
+        >
+          <CalendarFull className="h-2 w-2 mr-1" />
+          Schedule
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Schedule Winner Pickup</DialogTitle>
+          <DialogDescription>
+            Schedule pickup for auction winner of "{item.name}"
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="grid gap-4">
+          {/* Auction Summary */}
+          <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+            <div className="text-sm font-medium text-yellow-800 mb-2">Auction Results</div>
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Final Price:</span>
+                <span className="font-bold text-yellow-700">₹{winnerInfo.finalPrice.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Winner ID:</span>
+                <span className="font-mono">{String(winnerInfo.winnerId).slice(0, 12)}...</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Winner Details */}
+          <div className="p-3 bg-gray-50 rounded-lg border">
+            <div className="text-sm font-medium text-gray-800 mb-2">Winner Details</div>
+            <div className="space-y-2 text-xs">
+              <div className="grid grid-cols-1 gap-1">
+                <div>
+                  <span className="text-gray-600 font-medium">Vendor ID:</span>{' '}
+                  <span className="font-mono text-blue-600">{winnerDetails?.id ?? winnerInfo.winnerId}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600 font-medium">Vendor Name:</span>{' '}
+                  <span className="font-medium">{winnerDetails?.contact_person ?? 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600 font-medium">Company:</span>{' '}
+                  <span className="font-medium">{winnerDetails?.company_name ?? 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600 font-medium">Email:</span>{' '}
+                  <span className="text-blue-600">{winnerDetails?.email ?? 'N/A'}</span>
+                </div>
+                {winnerDetails?.cpcb_registration_no && (
+                  <div>
+                    <span className="text-gray-600 font-medium">CPCB Registration:</span>{' '}
+                    <span className="font-mono text-green-600">{winnerDetails.cpcb_registration_no}</span>
+                  </div>
+                )}
+              </div>
+              {!winnerDetails && (
+                <div className="text-xs text-gray-500">
+                  <div className="animate-pulse">Loading vendor details (fallback shown)</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Pickup Date Selection */}
+          <div className="grid gap-2">
+            <Label>Pickup Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  disabled={(date) => date < today}
+                  showOutsideDays={false}
+                  captionLayout="dropdown"
+                  fromDate={today}
+                  toDate={maxDate}
+                  fromYear={currentYear}
+                  toYear={currentYear + 2}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={!date || submitting}>
+            {submitting ? "Scheduling..." : "Schedule Pickup"}
           </Button>
         </DialogFooter>
       </DialogContent>

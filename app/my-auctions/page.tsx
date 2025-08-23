@@ -1,6 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { PageLayout } from "@/components/page-layout"
+import { PageCard } from "@/components/page-card"
+import { LoadingState } from "@/components/loading-state"
+import { ErrorState } from "@/components/error-state"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -93,27 +97,24 @@ export default function MyAuctionsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center py-12">Loading your auctions...</div>
-        </div>
-      </div>
+      <PageLayout>
+        <LoadingState type="page" />
+      </PageLayout>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">My Auctions</h1>
-          <p className="text-gray-600">Track your auctions and bids</p>
-        </div>
-
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-            {error}
-          </div>
-        )}
+    <PageLayout 
+      title="My Auctions" 
+      description="Track your auctions and bids"
+    >
+      {error && (
+        <ErrorState 
+          type="alert"
+          message={error}
+          onRetry={() => fetchAuctions()}
+        />
+      )}
 
         <Tabs defaultValue="active" className="space-y-6">
           <TabsList>
@@ -238,7 +239,6 @@ export default function MyAuctionsPage() {
             )}
           </TabsContent>
         </Tabs>
-      </div>
-    </div>
+    </PageLayout>
   )
 }

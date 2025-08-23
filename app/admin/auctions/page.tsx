@@ -1,12 +1,11 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AppNav } from "@/components/app-nav"
 import { formatDistanceToNow } from "date-fns"
 
 type Auction = {
@@ -50,9 +49,9 @@ export default function AdminAuctionsPage() {
       const auctionsData = await response.json()
       setAuctions(auctionsData)
       
-      // Fetch bids with vendor info for each auction
+      // Fetch bids for each auction
       const bidPromises = auctionsData.map(async (auction: Auction) => {
-        const bidResponse = await fetch(`/api/auctions/${auction.id}/bids?include_vendor=true`)
+        const bidResponse = await fetch(`/api/auctions/${auction.id}/bids`)
         if (bidResponse.ok) {
           const auctionBids = await bidResponse.json()
           return { auctionId: auction.id, bids: auctionBids }
@@ -102,21 +101,20 @@ export default function AdminAuctionsPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-b from-[#9ac37e]/5 to-transparent">
-        <section className="container mx-auto py-4 sm:py-8 px-4 max-w-7xl">
-          <div className="text-center py-12 text-[#3e5f44]">Loading auction data...</div>
-        </section>
-      </main>
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center py-12">Loading auction data...</div>
+        </div>
+      </div>
     )
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#9ac37e]/5 to-transparent">
-      <AppNav />
-      <section className="container mx-auto py-4 sm:py-8 space-y-4 sm:space-y-8 px-4 max-w-7xl">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
+      <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#3e5f44] mb-2">Admin - Auction Management</h1>
-          <p className="text-[#3e5f44]/70">Monitor and manage all auction activities</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin - Auction Management</h1>
+          <p className="text-gray-600">Monitor and manage all auction activities</p>
         </div>
 
         {error && (
@@ -127,49 +125,49 @@ export default function AdminAuctionsPage() {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
+          <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-[#3e5f44]/70">Total Auctions</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Total Auctions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-[#3e5f44]">{auctions.length}</div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-[#3e5f44]/70">Active Auctions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-[#9ac37e]">{activeAuctions.length}</div>
+              <div className="text-2xl font-bold">{auctions.length}</div>
             </CardContent>
           </Card>
           
-          <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
+          <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-[#3e5f44]/70">Completed Auctions</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Active Auctions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-[#3e5f44]">{completedAuctions.length}</div>
+              <div className="text-2xl font-bold text-green-600">{activeAuctions.length}</div>
             </CardContent>
           </Card>
-
-          <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
+          
+          <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-[#3e5f44]/70">Total Revenue</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Completed Auctions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-[#9ac37e]">₹{getTotalRevenue(completedAuctions).toLocaleString()}</div>
+              <div className="text-2xl font-bold text-blue-600">{completedAuctions.length}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Total Revenue</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">₹{getTotalRevenue(completedAuctions).toLocaleString()}</div>
             </CardContent>
           </Card>
         </div>
 
         <Tabs defaultValue="active" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto bg-[#9ac37e]/10 border-2 border-[#3e5f44] rounded-none">
-            <TabsTrigger value="active" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20">Active ({activeAuctions.length})</TabsTrigger>
-            <TabsTrigger value="completed" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20">Completed ({completedAuctions.length})</TabsTrigger>
-            <TabsTrigger value="cancelled" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20">Cancelled ({cancelledAuctions.length})</TabsTrigger>
-            <TabsTrigger value="all" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20">All Auctions ({auctions.length})</TabsTrigger>
+          <TabsList>
+            <TabsTrigger value="active">Active ({activeAuctions.length})</TabsTrigger>
+            <TabsTrigger value="completed">Completed ({completedAuctions.length})</TabsTrigger>
+            <TabsTrigger value="cancelled">Cancelled ({cancelledAuctions.length})</TabsTrigger>
+            <TabsTrigger value="all">All Auctions ({auctions.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="active" className="space-y-4">
@@ -185,9 +183,11 @@ export default function AdminAuctionsPage() {
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div>
-                        <CardTitle className="text-lg">Auction #{auction.id.slice(0, 8)}...</CardTitle>
+                        <CardTitle className="text-lg">
+                          Auction #{auction.id ? String(auction.id).slice(0, 8) : 'N/A'}...
+                        </CardTitle>
                         <CardDescription>
-                          Item: {auction.item_id} • Created by: {auction.created_by.slice(0, 8)}...
+                          Item: {auction.item_id} • Created by: {auction.created_by ? String(auction.created_by).slice(0, 8) : 'Unknown'}...
                         </CardDescription>
                       </div>
                       <div className="text-right">
@@ -228,7 +228,7 @@ export default function AdminAuctionsPage() {
                         <div className="space-y-2 max-h-32 overflow-y-auto">
                           {bids[auction.id].slice(0, 5).map((bid) => (
                             <div key={bid.id} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded">
-                              <span>Vendor: {bid.vendor_id.slice(0, 8)}...</span>
+                              <span>Vendor: {bid.vendor_id ? String(bid.vendor_id).slice(0, 8) : 'Unknown'}...</span>
                               <span className="font-semibold">₹{bid.amount}</span>
                               <span className="text-xs text-gray-500">
                                 {formatDistanceToNow(new Date(bid.bid_time))} ago
@@ -260,7 +260,9 @@ export default function AdminAuctionsPage() {
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div>
-                        <CardTitle className="text-lg">Auction #{auction.id.slice(0, 8)}...</CardTitle>
+                        <CardTitle className="text-lg">
+                          Auction #{auction.id ? String(auction.id).slice(0, 8) : 'N/A'}...
+                        </CardTitle>
                         <CardDescription>
                           Item: {auction.item_id} • Completed {formatDistanceToNow(new Date(auction.end_time))} ago
                         </CardDescription>
@@ -286,7 +288,7 @@ export default function AdminAuctionsPage() {
                         <h4 className="font-semibold text-sm text-gray-600">Winner</h4>
                         <p className="text-lg">
                           {auction.current_highest_bidder ? 
-                            `${auction.current_highest_bidder.slice(0, 8)}...` : 
+                            `${String(auction.current_highest_bidder).slice(0, 8)}...` : 
                             "No winner"
                           }
                         </p>
@@ -315,7 +317,9 @@ export default function AdminAuctionsPage() {
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div>
-                        <CardTitle className="text-lg">Auction #{auction.id.slice(0, 8)}...</CardTitle>
+                        <CardTitle className="text-lg">
+                          Auction #{auction.id ? String(auction.id).slice(0, 8) : 'N/A'}...
+                        </CardTitle>
                         <CardDescription>
                           Item: {auction.item_id} • Cancelled
                         </CardDescription>
@@ -355,7 +359,9 @@ export default function AdminAuctionsPage() {
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div>
-                        <CardTitle className="text-lg">Auction #{auction.id.slice(0, 8)}...</CardTitle>
+                        <CardTitle className="text-lg">
+                          Auction #{auction.id ? String(auction.id).slice(0, 8) : 'N/A'}...
+                        </CardTitle>
                         <CardDescription>
                           Item: {auction.item_id} • Created {formatDistanceToNow(new Date(auction.created_at))} ago
                         </CardDescription>
@@ -398,7 +404,7 @@ export default function AdminAuctionsPage() {
             )}
           </TabsContent>
         </Tabs>
-      </section>
-    </main>
+      </div>
+    </div>
   )
 }

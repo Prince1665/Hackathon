@@ -270,15 +270,15 @@ export default function VendorScanPage() {
       <AppNav />
       <section className="container mx-auto py-4 sm:py-8 grid gap-4 sm:gap-6 px-4 max-w-4xl">
         <Tabs defaultValue="scan">
-          <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto bg-[#9ac37e]/10 border-2 border-[#3e5f44] rounded-none">
-            <TabsTrigger value="scan" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20">Scan</TabsTrigger>
-            <TabsTrigger value="scheduled" className="relative border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20">
+          <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
+            <TabsTrigger value="scan">Scan</TabsTrigger>
+            <TabsTrigger value="scheduled" className="relative">
               Scheduled
               {hasPendingPickups && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
               )}
             </TabsTrigger>
-            <TabsTrigger value="auctions" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20">Auctions</TabsTrigger>
+            <TabsTrigger value="auctions">Auctions</TabsTrigger>
           </TabsList>
 
           <TabsContent value="scan" className="grid gap-6">
