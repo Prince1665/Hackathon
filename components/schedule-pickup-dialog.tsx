@@ -155,6 +155,8 @@ export function ScheduleWinnerPickupDialog({
   const [adminId, setAdminId] = useState<string>("")
   const [submitting, setSubmitting] = useState(false)
   const [winnerDetails, setWinnerDetails] = useState<Vendor | null>(null)
+  const [loadingVendor, setLoadingVendor] = useState(false)
+  const [vendorError, setVendorError] = useState<string | null>(null)
 
   // Get current date and calculate year range dynamically
   const currentDate = new Date()
@@ -172,21 +174,30 @@ export function ScheduleWinnerPickupDialog({
   // Fetch winner details when dialog opens
   useEffect(() => {
     if (open && winnerInfo.winnerId) {
+      setLoadingVendor(true)
+      setVendorError(null)
       console.log('Fetching vendor details for ID:', winnerInfo.winnerId)
+      
       fetch(`/api/vendors/${winnerInfo.winnerId}`)
         .then(r => {
+          console.log('Vendor API response status:', r.status)
           if (!r.ok) {
-            throw new Error(`HTTP ${r.status}`)
+            throw new Error(`HTTP ${r.status}: ${r.statusText}`)
           }
           return r.json()
         })
         .then(vendor => {
-          console.log('Vendor details fetched:', vendor)
+          console.log('Vendor details fetched successfully:', vendor)
           setWinnerDetails(vendor)
+          setVendorError(null)
         })
         .catch(error => {
           console.error('Error fetching vendor details:', error)
+          setVendorError(error.message)
           setWinnerDetails(null)
+        })
+        .finally(() => {
+          setLoadingVendor(false)
         })
     }
   }, [open, winnerInfo.winnerId])
@@ -281,9 +292,25 @@ export function ScheduleWinnerPickupDialog({
                   </div>
                 )}
               </div>
-              {!winnerDetails && (
-                <div className="text-xs text-gray-500">
-                  <div className="animate-pulse">Loading vendor details (fallback shown)</div>
+              {!winnerDetails && !loadingVendor && vendorError && (
+                <div className="text-xs text-red-500 bg-red-50 p-2 rounded border">
+                  <div className="font-medium">Error loading vendor details:</div>
+                  <div className="mt-1">{vendorError}</div>
+                  <div className="mt-1 text-gray-600">Vendor ID: {winnerInfo.winnerId}</div>
+                </div>
+              )}
+              {!winnerDetails && loadingVendor && (
+                <div className="text-xs text-blue-500 bg-blue-50 p-2 rounded border">
+                  <div className="animate-pulse flex items-center gap-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce"></div>
+                    Loading vendor details...
+                  </div>
+                </div>
+              )}
+              {!winnerDetails && !loadingVendor && !vendorError && (
+                <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded border">
+                  <div>No vendor details available</div>
+                  <div className="mt-1 text-gray-600">Vendor ID: {winnerInfo.winnerId}</div>
                 </div>
               )}
             </div>

@@ -69,6 +69,86 @@ export type Bid = {
 
 export type Campaign = { id: string; title: string; date: string; description?: string }
 
+// SDG-related types
+export type SDGMapping = {
+  id: string
+  sdg: string // e.g., "SDG 12"
+  target: string // e.g., "12.5"
+  indicator_key: string // e.g., "recycling_rate_pct"
+  title: string
+  formula_text: string
+  unit: string
+  preferred_chart: "line" | "bar" | "kpi"
+  breakdowns: string[] // e.g., ["city", "category", "vendor"]
+  quality_note: string // e.g., "proxy"
+  goal_direction: "up_is_good" | "down_is_good"
+}
+
+export type EmissionFactor = {
+  id: string
+  category_material: string // e.g., "Laptop" or "Battery"
+  kgco2e_per_kg_recycled: number
+  kgco2e_per_kg_refurbished: number
+  kgco2e_per_kg_landfill: number // baseline
+  source_note: string
+  region: string
+}
+
+export type SDGAnalyticsDaily = {
+  id: string
+  date: string // YYYY-MM-DD (IST)
+  kpis: {
+    diverted_kg: number
+    recycled_kg: number
+    collected_kg: number
+    refurb_kg: number
+    recycling_rate_pct: number
+    refurb_rate_pct: number
+    ghg_avoided_kgco2e: number
+    hazardous_processed_count: number
+    green_jobs_hours: number
+  }
+  breakdowns: {
+    by_city: Array<{
+      city: string
+      diverted_kg: number
+      recycling_rate_pct: number
+      ghg_avoided_kgco2e: number
+    }>
+    by_category: Array<{
+      category: string
+      diverted_kg: number
+      ghg_avoided_kgco2e: number
+    }>
+    by_vendor: Array<{
+      vendor: string
+      diverted_kg: number
+      recycling_rate_pct: number
+    }>
+  }
+  metadata: {
+    run_id: string
+    input_docs: number
+    notes: string
+  }
+}
+
+export type TransactionType = "collected" | "recycled" | "refurbished" | "disposed"
+
+export type Transaction = {
+  id: string
+  transaction_id: string
+  item_id: string
+  type: TransactionType
+  weight_kg: number
+  timestamp: string
+  location: {
+    city: string
+    state: string
+  }
+  vendor_id?: string
+}
+
 // Helper function for case-insensitive status comparison
 export function isStatusEqual(status1: string | undefined, status2: string): boolean {
   return status1?.toLowerCase().trim() === status2.toLowerCase().trim()
@@ -157,22 +237,37 @@ export async function getVendorById(vendorId: string): Promise<Vendor | null> {
   const { ObjectId } = require("mongodb")
 
   try {
-    // Try as ObjectId first (most common)
-    let query: any = {}
+    console.log("Looking for vendor with ID:", vendorId)
+    
+    // Create multiple query options to handle different ID formats
+    const queries = []
+    
+    // 1. Direct string match (for IDs like "vendor-1")
+    queries.push({ _id: vendorId })
+    
+    // 2. ObjectId conversion (for hex string IDs)
     try {
-      query = { _id: new ObjectId(vendorId) }
+      if (ObjectId.isValid(vendorId)) {
+        queries.push({ _id: new ObjectId(vendorId) })
+      }
     } catch (e) {
-      // vendorId is not a valid ObjectId hex string; fall back to string match
-      query = { _id: vendorId }
+      // Ignore ObjectId conversion errors
     }
+    
+    // 3. Match against an id field (fallback)
+    queries.push({ id: vendorId })
 
-    // Also allow matching a stored string `id` field as a fallback
+    console.log("Using queries:", queries)
+    
     const vendor = await db.collection("vendors").findOne(
-      { $or: [query, { id: vendorId }] },
+      { $or: queries },
       { projection: { _id: 1, company_name: 1, contact_person: 1, email: 1, cpcb_registration_no: 1 } }
     )
 
+    console.log("Found vendor:", vendor)
+
     if (!vendor) {
+      console.log("No vendor found for ID:", vendorId)
       return null
     }
 
@@ -784,5 +879,127 @@ export async function analyticsRecoveryRate(): Promise<{ rate: number; recycled:
   const total = items.length
   const rate = total ? Math.round(((disposed / total) * 100 + Number.EPSILON) * 100) / 100 : 0
   return { rate, recycled, disposed }
+}
+
+// SDG Analytics Functions
+export async function getSDGMappings(): Promise<SDGMapping[]> {
+  const db = await getDb()
+  const rows = await db.collection("sdg_mappings").find({}).sort({ sdg: 1, target: 1 }).toArray()
+  return rows.map((d: any) => mapId<SDGMapping>(d))
+}
+
+export async function createSDGMapping(input: Omit<SDGMapping, 'id'>): Promise<SDGMapping> {
+  const db = await getDb()
+  const id = randomUUID()
+  const doc = { _id: id as any, ...input }
+  await db.collection("sdg_mappings").insertOne(doc)
+  return mapId<SDGMapping>(doc)
+}
+
+export async function getEmissionFactors(): Promise<EmissionFactor[]> {
+  const db = await getDb()
+  const rows = await db.collection("emission_factors").find({}).sort({ category_material: 1 }).toArray()
+  return rows.map((d: any) => mapId<EmissionFactor>(d))
+}
+
+export async function createEmissionFactor(input: Omit<EmissionFactor, 'id'>): Promise<EmissionFactor> {
+  const db = await getDb()
+  const id = randomUUID()
+  const doc = { _id: id as any, ...input }
+  await db.collection("emission_factors").insertOne(doc)
+  return mapId<EmissionFactor>(doc)
+}
+
+export async function getSDGAnalyticsDailyRange(startDate: string, endDate: string): Promise<SDGAnalyticsDaily[]> {
+  const db = await getDb()
+  const rows = await db.collection("sdg_analytics_daily")
+    .find({ 
+      date: { 
+        $gte: startDate, 
+        $lte: endDate 
+      } 
+    })
+    .sort({ date: 1 })
+    .toArray()
+  return rows.map((d: any) => mapId<SDGAnalyticsDaily>(d))
+}
+
+export async function createTransaction(input: Omit<Transaction, 'id'>): Promise<Transaction> {
+  const db = await getDb()
+  const id = randomUUID()
+  const doc = { _id: id as any, ...input }
+  await db.collection("transactions").insertOne(doc)
+  return mapId<Transaction>(doc)
+}
+
+export async function getTransactionsInRange(startDate: string, endDate: string): Promise<Transaction[]> {
+  const db = await getDb()
+  const rows = await db.collection("transactions")
+    .find({ 
+      timestamp: { 
+        $gte: startDate, 
+        $lte: endDate 
+      } 
+    })
+    .sort({ timestamp: 1 })
+    .toArray()
+  return rows.map((d: any) => mapId<Transaction>(d))
+}
+
+// Helper function to calculate SDG metrics from raw data
+export async function calculateSDGMetrics(startDate: string, endDate: string): Promise<{
+  diverted_kg: number
+  recycled_kg: number
+  collected_kg: number
+  refurb_kg: number
+  recycling_rate_pct: number
+  refurb_rate_pct: number
+  ghg_avoided_kgco2e: number
+  hazardous_processed_count: number
+  green_jobs_hours: number
+}> {
+  const transactions = await getTransactionsInRange(startDate, endDate)
+  const emissionFactors = await getEmissionFactors()
+  
+  // Calculate basic metrics
+  const collected_kg = transactions
+    .filter(t => t.type === "collected")
+    .reduce((sum, t) => sum + t.weight_kg, 0)
+  
+  const recycled_kg = transactions
+    .filter(t => t.type === "recycled")
+    .reduce((sum, t) => sum + t.weight_kg, 0)
+  
+  const refurb_kg = transactions
+    .filter(t => t.type === "refurbished")
+    .reduce((sum, t) => sum + t.weight_kg, 0)
+  
+  const diverted_kg = recycled_kg + refurb_kg
+  
+  const recycling_rate_pct = collected_kg > 0 ? (recycled_kg / collected_kg) * 100 : 0
+  const refurb_rate_pct = collected_kg > 0 ? (refurb_kg / collected_kg) * 100 : 0
+  
+  // Calculate GHG avoided (simplified - would need item categories)
+  const ghg_avoided_kgco2e = diverted_kg * 2.5 // Placeholder factor
+  
+  // Count hazardous items processed (simplified)
+  const hazardous_processed_count = transactions
+    .filter(t => ["recycled", "disposed"].includes(t.type))
+    .length // Placeholder - would need to check item materials
+  
+  // Estimate green jobs hours (simplified)
+  const green_jobs_hours = diverted_kg * 0.5 // Placeholder: 0.5 hours per kg processed
+  
+  return {
+    diverted_kg: Math.round(diverted_kg * 100) / 100,
+    recycled_kg: Math.round(recycled_kg * 100) / 100,
+    collected_kg: Math.round(collected_kg * 100) / 100,
+    refurb_kg: Math.round(refurb_kg * 100) / 100,
+    recycling_rate_pct: Math.round(recycling_rate_pct * 100) / 100,
+    refurb_rate_pct: Math.round(refurb_rate_pct * 100) / 100,
+    ghg_avoided_kgco2e: Math.round(ghg_avoided_kgco2e * 100) / 100,
+    hazardous_processed_count,
+    green_jobs_hours: Math.round(green_jobs_hours * 100) / 100
+  }
 }
 

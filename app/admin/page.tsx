@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SchedulePickupDialog, ScheduleWinnerPickupDialog } from "@/components/schedule-pickup-dialog"
+import SDGImpactAnalytics from "@/components/sdg-impact-analytics"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -374,11 +375,12 @@ export default function Page() {
       <AppNav />
       <section className="container mx-auto py-4 sm:py-8 space-y-4 sm:space-y-8 px-4 max-w-7xl">
         <Tabs defaultValue="items">
-          <TabsList className="grid w-full grid-cols-2 grid-rows-3 md:grid-cols-6 md:grid-rows-1 gap-2 sm:gap-3 p-2 sm:p-3 bg-[#9ac37e]/10 rounded-none border-2 border-[#3e5f44] h-auto">
+          <TabsList className="grid w-full grid-cols-2 grid-rows-4 md:grid-cols-7 md:grid-rows-1 gap-2 sm:gap-3 p-2 sm:p-3 bg-[#9ac37e]/10 rounded-none border-2 border-[#3e5f44] h-auto">
             <TabsTrigger value="items" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Items</TabsTrigger>
             <TabsTrigger value="auctions" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Auctions</TabsTrigger>
             <TabsTrigger value="pickups" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Pickups</TabsTrigger>
             <TabsTrigger value="analytics" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Analytics</TabsTrigger>
+            <TabsTrigger value="sdg-impact" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">SDG Impact</TabsTrigger>
             <TabsTrigger value="reports" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Reports</TabsTrigger>
             <TabsTrigger value="campaigns" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20 h-10 sm:h-12 flex items-center justify-center text-xs sm:text-sm">Campaigns</TabsTrigger>
           </TabsList>
@@ -1093,6 +1095,10 @@ export default function Page() {
 
           <TabsContent value="reports" className="space-y-4">
             <ReportsSection />
+          </TabsContent>
+
+          <TabsContent value="sdg-impact" className="space-y-4">
+            <SDGImpactAnalytics />
           </TabsContent>
 
           <TabsContent value="campaigns" className="space-y-4">
