@@ -42,32 +42,53 @@ export default function VendorAuctionsPage() {
   const [bidding, setBidding] = useState<{ [auctionId: string]: boolean }>({})
   const [error, setError] = useState("")
   const [bidError, setBidError] = useState<{ [auctionId: string]: string }>({})
+  const [currentUser, setCurrentUser] = useState<{ email: string; name: string } | null>(null)
 
   useEffect(() => {
     fetchData()
+    fetchUserInfo()
   }, [])
+
+  const fetchUserInfo = async () => {
+    try {
+      const response = await fetch("/api/auth/me")
+      if (response.ok) {
+        const userData = await response.json()
+        setCurrentUser(userData.user)
+      }
+    } catch (err) {
+      console.error("Failed to fetch user info:", err)
+    }
+  }
 
   const fetchData = async () => {
     try {
       // Fetch active auctions
       const auctionsResponse = await fetch("/api/auctions?status=active")
       if (!auctionsResponse.ok) throw new Error("Failed to fetch auctions")
-      
+
       const auctionsData = await auctionsResponse.json()
       setAuctions(auctionsData)
 
-      // Fetch all my bids across auctions
-      const bidPromises = auctionsData.map(async (auction: Auction) => {
-        const bidResponse = await fetch(`/api/auctions/${auction.id}/bids`)
-        if (bidResponse.ok) {
-          return await bidResponse.json()
-        }
-        return []
-      })
-      
-      const allBids = await Promise.all(bidPromises)
-      const flatBids = allBids.flat()
-      setMyBids(flatBids)
+      // Fetch my vendor-specific bids
+      const myBidsResponse = await fetch("/api/vendor/bids")
+      if (myBidsResponse.ok) {
+        const myBidsData = await myBidsResponse.json()
+        setMyBids(myBidsData)
+      } else {
+        // Fallback: fetch all bids and filter (less efficient but works)
+        const bidPromises = auctionsData.map(async (auction: Auction) => {
+          const bidResponse = await fetch(`/api/auctions/${auction.id}/bids`)
+          if (bidResponse.ok) {
+            return await bidResponse.json()
+          }
+          return []
+        })
+
+        const allBids = await Promise.all(bidPromises)
+        const flatBids = allBids.flat()
+        setMyBids(flatBids)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
     } finally {
@@ -180,8 +201,19 @@ export default function VendorAuctionsPage() {
           </div>
 
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Vendor Auctions</h1>
-            <p className="text-gray-600">Browse and bid on available e-waste items</p>
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Vendor Auctions</h1>
+                <p className="text-gray-600">Browse and bid on available e-waste items</p>
+              </div>
+              {currentUser && (
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">Logged in as</p>
+                  <p className="font-semibold text-gray-900">{currentUser.name}</p>
+                  <p className="text-sm text-gray-600">{currentUser.email}</p>
+                </div>
+              )}
+            </div>
           </div>
 
         {error && (

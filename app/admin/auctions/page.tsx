@@ -49,9 +49,9 @@ export default function AdminAuctionsPage() {
       const auctionsData = await response.json()
       setAuctions(auctionsData)
       
-      // Fetch bids for each auction
+      // Fetch bids with vendor info for each auction
       const bidPromises = auctionsData.map(async (auction: Auction) => {
-        const bidResponse = await fetch(`/api/auctions/${auction.id}/bids`)
+        const bidResponse = await fetch(`/api/auctions/${auction.id}/bids?include_vendor=true`)
         if (bidResponse.ok) {
           const auctionBids = await bidResponse.json()
           return { auctionId: auction.id, bids: auctionBids }

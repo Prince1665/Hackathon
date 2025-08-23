@@ -152,6 +152,43 @@ export async function listVendors(): Promise<Vendor[]> {
   return rows.map((v: any) => ({ id: String(v._id), company_name: v.company_name, contact_person: v.contact_person, email: v.email, cpcb_registration_no: v.cpcb_registration_no }))
 }
 
+export async function getVendor(id: string): Promise<Vendor | null> {
+  const db = await getDb()
+  const vendor = await db.collection("vendors").findOne({ _id: id as any })
+  if (!vendor) return null
+
+  return {
+    id: String(vendor._id),
+    company_name: vendor.company_name,
+    contact_person: vendor.contact_person,
+    email: vendor.email,
+    cpcb_registration_no: vendor.cpcb_registration_no
+  }
+}
+
+export async function getVendorByUserId(userId: string): Promise<Vendor | null> {
+  const db = await getDb()
+  try {
+    const user = await db.collection("users").findOne({ _id: new ObjectId(userId) })
+    const email = (user as any)?.email || ""
+    if (email) {
+      const vendor = await db.collection("vendors").findOne({ email })
+      if (vendor) {
+        return {
+          id: String(vendor._id),
+          company_name: vendor.company_name,
+          contact_person: vendor.contact_person,
+          email: vendor.email,
+          cpcb_registration_no: vendor.cpcb_registration_no
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error getting vendor by user ID:", error)
+  }
+  return null
+}
+
 // Items
 export async function createItem(input: { 
   name: string; 
@@ -461,7 +498,7 @@ export async function getAuction(id: string): Promise<Auction | null> {
   const db = await getDb()
   const auction = await db.collection("auctions").findOne({ _id: id as any })
   if (!auction) return null
-  
+
   const { _id, ...rest } = auction
   return { id: String(_id), ...rest } as Auction
 }
@@ -473,29 +510,59 @@ export async function placeBid(input: {
 }): Promise<Bid> {
   const db = await getDb()
   const id = randomUUID()
-  
+
+  console.log(`🔍 placeBid: Checking auction ${input.auction_id}`)
+
+  // Validate auction ID format (should be UUID)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!uuidRegex.test(input.auction_id)) {
+    console.log(`❌ placeBid: Invalid auction ID format: ${input.auction_id}`)
+    throw new Error(`Invalid auction ID format. Please refresh the page and try again.`)
+  }
+
   // Check if auction exists and is active
   const auction = await getAuction(input.auction_id)
-  if (!auction || !isStatusEqual(auction.status, "active")) {
+  console.log(`📊 placeBid: Auction found:`, auction ? {
+    id: auction.id,
+    status: auction.status,
+    end_time: auction.end_time,
+    current_time: new Date().toISOString()
+  } : 'null')
+
+  if (!auction) {
+    console.log(`❌ placeBid: Auction ${input.auction_id} not found`)
+    throw new Error(`Auction with ID "${input.auction_id}" not found. Please refresh the page and try again.`)
+  }
+
+  if (!isStatusEqual(auction.status, "active")) {
+    console.log(`❌ placeBid: Auction status is "${auction.status}", not "active"`)
     throw new Error("Auction is not active")
   }
-  
+
   // Check if auction has expired
-  if (new Date() > new Date(auction.end_time)) {
+  const now = new Date()
+  const endTime = new Date(auction.end_time)
+  if (now > endTime) {
+    console.log(`❌ placeBid: Auction expired. Now: ${now.toISOString()}, End: ${auction.end_time}`)
     throw new Error("Auction has expired")
   }
+
+  console.log(`✅ placeBid: Auction is active and not expired`)
   
   // Check minimum bid requirement (starting price + 50Rs or current highest + 50Rs)
-  const minBid = auction.current_highest_bid 
-    ? auction.current_highest_bid + 50 
+  const minBid = auction.current_highest_bid
+    ? auction.current_highest_bid + 50
     : auction.starting_price + 50
-    
+
   if (input.amount < minBid) {
+    console.log(`❌ placeBid: Bid amount ${input.amount} is less than minimum ${minBid}`)
     throw new Error(`Bid must be at least ₹${minBid}`)
   }
-  
+
+  console.log(`💰 placeBid: Bid amount ${input.amount} meets minimum requirement of ₹${minBid}`)
+
   const bid_time = new Date().toISOString()
-  
+
   const bid: Bid = {
     id,
     auction_id: input.auction_id,
@@ -504,27 +571,79 @@ export async function placeBid(input: {
     bid_time,
     status: "winning"
   }
-  
-  // Mark previous highest bid as outbid
-  if (auction.current_highest_bidder) {
+
+  // Double-check auction is still active right before placing bid (prevent race conditions)
+  const freshAuction = await getAuction(input.auction_id)
+  if (!freshAuction || !isStatusEqual(freshAuction.status, "active")) {
+    console.log(`❌ placeBid: Auction status changed to "${freshAuction?.status}" during bid placement`)
+    throw new Error("Auction is no longer active")
+  }
+
+  if (new Date() > new Date(freshAuction.end_time)) {
+    console.log(`❌ placeBid: Auction expired during bid placement`)
+    throw new Error("Auction has expired")
+  }
+
+  console.log(`🔄 placeBid: Final checks passed, placing bid...`)
+
+  // Check if this vendor already has a bid for this auction
+  const existingBid = await db.collection("bids").findOne({
+    auction_id: input.auction_id,
+    vendor_id: input.vendor_id
+  })
+
+  if (existingBid) {
+    // Update existing bid instead of creating a new one
+    console.log(`🔄 placeBid: Updating existing bid from ₹${existingBid.amount} to ₹${input.amount}`)
+
+    await db.collection("bids").updateOne(
+      { _id: existingBid._id },
+      {
+        $set: {
+          amount: input.amount,
+          bid_time: bid_time,
+          status: "winning" // Will be updated below if not the highest
+        }
+      }
+    )
+
+    // Use existing bid ID for response
+    bid.id = String(existingBid._id)
+  } else {
+    // Insert new bid
+    console.log(`🆕 placeBid: Creating new bid for vendor`)
+    await db.collection("bids").insertOne({ _id: id as any, ...bid })
+  }
+
+  // Mark previous highest bidder as outbid (if different from current bidder)
+  if (auction.current_highest_bidder && auction.current_highest_bidder !== input.vendor_id) {
     await db.collection("bids").updateMany(
       { auction_id: input.auction_id, vendor_id: auction.current_highest_bidder },
       { $set: { status: "outbid" } }
     )
   }
-  
-  // Insert new bid and update auction's current highest bid
-  await db.collection("bids").insertOne({ _id: id as any, ...bid })
+
+  // Mark all other bids as outbid
+  await db.collection("bids").updateMany(
+    {
+      auction_id: input.auction_id,
+      vendor_id: { $ne: input.vendor_id }
+    },
+    { $set: { status: "outbid" } }
+  )
+
+  // Update auction's current highest bid
   await db.collection("auctions").updateOne(
     { _id: input.auction_id as any },
-    { 
-      $set: { 
+    {
+      $set: {
         current_highest_bid: input.amount,
         current_highest_bidder: input.vendor_id
-      } 
+      }
     }
   )
-  
+
+  console.log(`✅ placeBid: Bid placed successfully for auction ${input.auction_id}`)
   return bid
 }
 
@@ -534,6 +653,36 @@ export async function listBids(auction_id: string): Promise<Bid[]> {
   return bids.map(b => {
     const { _id, ...rest } = b
     return { id: String(_id), ...rest } as Bid
+  })
+}
+
+export async function listBidsWithVendorInfo(auction_id: string): Promise<(Bid & { vendor?: Vendor })[]> {
+  const db = await getDb()
+  const bids = await db.collection("bids").find({ auction_id }).sort({ amount: -1, bid_time: 1 }).toArray()
+
+  // Get unique vendor IDs
+  const vendorIds = [...new Set(bids.map(b => b.vendor_id))]
+
+  // Fetch vendor information
+  const vendors = await db.collection("vendors").find({
+    _id: { $in: vendorIds.map(id => id as any) }
+  }).toArray()
+
+  const vendorMap = new Map(vendors.map(v => [String(v._id), {
+    id: String(v._id),
+    company_name: v.company_name,
+    contact_person: v.contact_person,
+    email: v.email,
+    cpcb_registration_no: v.cpcb_registration_no
+  }]))
+
+  return bids.map(b => {
+    const { _id, ...rest } = b
+    return {
+      id: String(_id),
+      ...rest,
+      vendor: vendorMap.get(b.vendor_id)
+    } as Bid & { vendor?: Vendor }
   })
 }
 
@@ -570,19 +719,32 @@ export async function completeAuction(auction_id: string): Promise<boolean> {
 export async function checkExpiredAuctions(): Promise<void> {
   const db = await getDb()
   const now = new Date().toISOString()
-  
+
+  console.log(`🕐 checkExpiredAuctions: Starting check at ${now}`)
+
   // Find active auctions that have expired (case-insensitive)
   const expiredAuctions = await db.collection("auctions").find({
     status: { $regex: /^active$/i },
     end_time: { $lt: now }
   }).toArray()
-  
+
   console.log(`🔍 checkExpiredAuctions: found ${expiredAuctions.length} expired auctions`)
-  
+
+  if (expiredAuctions.length > 0) {
+    console.log(`📋 Expired auctions:`, expiredAuctions.map(a => ({
+      id: String(a._id),
+      end_time: a.end_time,
+      status: a.status
+    })))
+  }
+
   // Complete each expired auction
   for (const auction of expiredAuctions) {
+    console.log(`⏰ Completing expired auction ${String(auction._id)}`)
     await completeAuction(String(auction._id))
   }
+
+  console.log(`✅ checkExpiredAuctions: Completed processing ${expiredAuctions.length} expired auctions`)
 }
 
 export async function updateVendorResponse(pickup_id: string, vendor_id: string, response: "Accepted" | "Rejected", note?: string): Promise<boolean> {

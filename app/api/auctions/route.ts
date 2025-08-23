@@ -2,21 +2,30 @@ import { NextRequest, NextResponse } from "next/server"
 import { createAuction, listAuctions, checkExpiredAuctions } from "@/lib/server/data-mongo"
 import { getSession } from "@/lib/server/auth"
 
+// Cache for last expired auction check to avoid checking too frequently
+let lastExpiredCheck = 0
+const EXPIRED_CHECK_INTERVAL = 60000 // 1 minute
+
 export async function GET(request: NextRequest) {
   try {
-    // Check for expired auctions on every request
-    await checkExpiredAuctions()
-    
+    // Check for expired auctions only once per minute to avoid race conditions
+    const now = Date.now()
+    if (now - lastExpiredCheck > EXPIRED_CHECK_INTERVAL) {
+      console.log("🕐 Checking for expired auctions...")
+      await checkExpiredAuctions()
+      lastExpiredCheck = now
+    }
+
     const { searchParams } = new URL(request.url)
     const status = searchParams.get("status") as "active" | "completed" | "cancelled" | null
     const created_by = searchParams.get("created_by")
     const item_id = searchParams.get("item_id")
-    
+
     const filter: any = {}
     if (status) filter.status = status
     if (created_by) filter.created_by = created_by
     if (item_id) filter.item_id = item_id
-    
+
     const auctions = await listAuctions(filter)
     return NextResponse.json(auctions)
   } catch (error) {
