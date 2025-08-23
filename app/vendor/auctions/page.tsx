@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { AppNav } from "@/components/app-nav"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -163,12 +164,25 @@ export default function VendorAuctionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Vendor Auctions</h1>
-          <p className="text-gray-600">Browse and bid on available e-waste items</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
+      <AppNav />
+      <div className="p-4">
+        <div className="max-w-6xl mx-auto">
+          {/* Navigation breadcrumb */}
+          <div className="mb-4">
+            <Button 
+              variant="ghost" 
+              onClick={() => window.location.href = '/vendor/scan'}
+              className="text-[#3e5f44] hover:bg-[#3e5f44]/10"
+            >
+              ← Back to Vendor Dashboard
+            </Button>
+          </div>
+
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Vendor Auctions</h1>
+            <p className="text-gray-600">Browse and bid on available e-waste items</p>
+          </div>
 
         {error && (
           <Alert variant="destructive" className="mb-6">
@@ -382,6 +396,7 @@ export default function VendorAuctionsPage() {
             )}
           </TabsContent>
         </Tabs>
+      </div>
       </div>
     </div>
   )

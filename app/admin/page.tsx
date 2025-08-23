@@ -129,6 +129,11 @@ export default function Page() {
   // Chart colors
   const CHART_COLORS = ['#3e5f44', '#9ac37e', '#6b8f71', '#a8d18a', '#4a6e50', '#7ca67f', '#8fb585']
 
+  // Helper function for case-insensitive status comparison
+  const isStatusEqual = (status1: string | undefined, status2: string): boolean => {
+    return status1?.toLowerCase().trim() === status2.toLowerCase().trim()
+  }
+
   async function load() {
     const qs = new URLSearchParams()
     if (status) qs.set("status", status)
@@ -243,15 +248,15 @@ export default function Page() {
 
   const getTotalRevenue = (auctions: Auction[]) => {
     return auctions
-      .filter(a => a.status === "completed" && a.current_highest_bid)
+      .filter(a => isStatusEqual(a.status, "completed") && a.current_highest_bid)
       .reduce((sum, a) => sum + (a.current_highest_bid || 0), 0)
   }
 
-  const activeAuctions = auctions.filter(a => a.status === "active")
-  const completedAuctions = auctions.filter(a => a.status === "completed")
-  const cancelledAuctions = auctions.filter(a => a.status === "cancelled")
+  const activeAuctions = auctions.filter(a => isStatusEqual(a.status, "active"))
+  const completedAuctions = auctions.filter(a => isStatusEqual(a.status, "completed"))
+  const cancelledAuctions = auctions.filter(a => isStatusEqual(a.status, "cancelled"))
 
-  const selectable = filtered.filter((i) => i.status === "Reported")
+  const selectable = filtered.filter((i) => isStatusEqual(i.status, "Reported"))
 
   const selectedIds = useMemo(() => Object.entries(selected).filter(([, v]) => v).map(([k]) => k), [selected])
 
@@ -344,7 +349,7 @@ export default function Page() {
                             filtered.map((i) => (
                               <tr key={i.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                                 <td className="w-[50px] px-3 py-3 text-center border-r border-border/30">
-                                  {i.status === "Reported" ? (
+                                  {isStatusEqual(i.status, "Reported") ? (
                                     <Checkbox 
                                       checked={!!selected[i.id]} 
                                       onCheckedChange={(v) => setSelected((s) => ({ ...s, [i.id]: !!v }))} 
@@ -439,7 +444,7 @@ export default function Page() {
                             <div key={i.id} className="p-4 space-y-3 hover:bg-muted/30 transition-colors">
                               <div className="flex items-start justify-between">
                                 <div className="flex items-start gap-3 flex-1">
-                                  {i.status === "Reported" ? (
+                                  {isStatusEqual(i.status, "Reported") ? (
                                     <Checkbox 
                                       checked={!!selected[i.id]} 
                                       onCheckedChange={(v) => setSelected((s) => ({ ...s, [i.id]: !!v }))} 
@@ -629,7 +634,7 @@ export default function Page() {
                           <div>
                             <span className="text-[#3e5f44]/70">Time Status:</span>
                             <div className="font-semibold text-[#3e5f44]">
-                              {auction.status === "active" ? getTimeRemaining(auction.end_time) : "Ended"}
+                              {isStatusEqual(auction.status, "active") ? getTimeRemaining(auction.end_time) : "Ended"}
                             </div>
                           </div>
                         </div>

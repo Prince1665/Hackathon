@@ -69,6 +69,11 @@ export type Bid = {
 
 export type Campaign = { id: string; title: string; date: string; description?: string }
 
+// Helper function for case-insensitive status comparison
+export function isStatusEqual(status1: string | undefined, status2: string): boolean {
+  return status1?.toLowerCase().trim() === status2.toLowerCase().trim()
+}
+
 function mapId<T extends Record<string, any>>(doc: any, extra?: Partial<T>): T {
   if (!doc) return doc
   const { _id, ...rest } = doc
@@ -438,7 +443,10 @@ export async function listAuctions(filter?: {
   const db = await getDb()
   const query: any = {}
   
-  if (filter?.status) query.status = filter.status
+  // Case-insensitive status filtering
+  if (filter?.status) {
+    query.status = { $regex: new RegExp(`^${filter.status}$`, 'i') }
+  }
   if (filter?.created_by) query.created_by = filter.created_by
   if (filter?.item_id) query.item_id = filter.item_id
   
@@ -468,7 +476,7 @@ export async function placeBid(input: {
   
   // Check if auction exists and is active
   const auction = await getAuction(input.auction_id)
-  if (!auction || auction.status !== "active") {
+  if (!auction || !isStatusEqual(auction.status, "active")) {
     throw new Error("Auction is not active")
   }
   
@@ -563,11 +571,13 @@ export async function checkExpiredAuctions(): Promise<void> {
   const db = await getDb()
   const now = new Date().toISOString()
   
-  // Find active auctions that have expired
+  // Find active auctions that have expired (case-insensitive)
   const expiredAuctions = await db.collection("auctions").find({
-    status: "active",
+    status: { $regex: /^active$/i },
     end_time: { $lt: now }
   }).toArray()
+  
+  console.log(`🔍 checkExpiredAuctions: found ${expiredAuctions.length} expired auctions`)
   
   // Complete each expired auction
   for (const auction of expiredAuctions) {

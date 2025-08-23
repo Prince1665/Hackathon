@@ -270,7 +270,7 @@ export default function VendorScanPage() {
       <AppNav />
       <section className="container mx-auto py-4 sm:py-8 grid gap-4 sm:gap-6 px-4 max-w-4xl">
         <Tabs defaultValue="scan">
-          <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
+          <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
             <TabsTrigger value="scan">Scan</TabsTrigger>
             <TabsTrigger value="scheduled" className="relative">
               Scheduled
@@ -278,6 +278,7 @@ export default function VendorScanPage() {
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
               )}
             </TabsTrigger>
+            <TabsTrigger value="auctions">Auctions</TabsTrigger>
           </TabsList>
 
           <TabsContent value="scan" className="grid gap-6">
@@ -512,6 +513,32 @@ export default function VendorScanPage() {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="auctions" className="grid gap-6">
+            <Card className="border-[#9ac37e]/20 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-[#3e5f44] text-lg sm:text-xl">Vendor Auctions</CardTitle>
+                <CardDescription className="text-[#3e5f44]/70">
+                  View and participate in item auctions. Bid on items to get the best deals.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="text-center py-8">
+                  <div className="text-lg font-semibold mb-4 text-[#3e5f44]">🏆 Ready to Bid?</div>
+                  <p className="text-[#3e5f44]/70 mb-6">
+                    Access the full auction platform to view active auctions, place bids, and track your bidding history.
+                  </p>
+                  <Button 
+                    onClick={() => window.location.href = '/vendor/auctions'}
+                    className="bg-[#3e5f44] hover:bg-[#4a6e50] text-white px-8 py-3"
+                    size="lg"
+                  >
+                    Go to Auctions →
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
