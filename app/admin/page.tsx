@@ -774,18 +774,6 @@ export default function Page() {
                       </div>
                     )
                   }).filter(Boolean)}
-                    
-                    {auctions.length > 5 && (
-                      <div className="text-center pt-4">
-                        <Button 
-                          onClick={() => router.push('/admin/auctions')}
-                          variant="outline"
-                          className="border-[#3e5f44] text-[#3e5f44] hover:bg-[#3e5f44] hover:text-white"
-                        >
-                          View All Auctions ({auctions.length})
-                        </Button>
-                      </div>
-                    )}
                   </div>
                 )}
               </CardContent>
