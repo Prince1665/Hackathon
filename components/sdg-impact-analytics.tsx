@@ -91,6 +91,13 @@ export default function SDGImpactAnalytics() {
     }
   }, [dateRange])
 
+  // Auto-reload when custom dates change
+  useEffect(() => {
+    if (dateRange === "custom" && startDate && endDate) {
+      loadData()
+    }
+  }, [dateRange, startDate, endDate])
+
   const loadData = async () => {
     setLoading(true)
     try {
@@ -119,6 +126,12 @@ export default function SDGImpactAnalytics() {
         }
         setStartDate(start)
         setEndDate(end)
+      }
+
+      // Ensure we have valid dates before making API calls
+      if (!start || !end) {
+        console.warn("Missing start or end date, skipping API calls")
+        return
       }
 
       // Load current metrics
