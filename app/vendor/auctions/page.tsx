@@ -185,36 +185,35 @@ export default function VendorAuctionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
+    <main className="min-h-screen bg-gradient-to-b from-[#9ac37e]/5 to-transparent">
       <AppNav />
-      <div className="p-4">
-        <div className="max-w-6xl mx-auto">
-          {/* Navigation breadcrumb */}
-          <div className="mb-4">
-            <Button 
-              variant="ghost" 
-              onClick={() => window.location.href = '/vendor/scan'}
-              className="text-[#3e5f44] hover:bg-[#3e5f44]/10"
-            >
-              ← Back to Vendor Dashboard
-            </Button>
-          </div>
+      <section className="container mx-auto py-4 sm:py-8 space-y-4 sm:space-y-8 px-4 max-w-7xl">
+        {/* Navigation breadcrumb */}
+        <div className="mb-4">
+          <Button
+            variant="ghost"
+            onClick={() => window.location.href = '/vendor/scan'}
+            className="text-[#3e5f44] hover:bg-[#3e5f44]/10"
+          >
+            ← Back to Vendor Dashboard
+          </Button>
+        </div>
 
-          <div className="mb-8">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Vendor Auctions</h1>
-                <p className="text-gray-600">Browse and bid on available e-waste items</p>
-              </div>
-              {currentUser && (
-                <div className="text-right">
-                  <p className="text-sm text-gray-500">Logged in as</p>
-                  <p className="font-semibold text-gray-900">{currentUser.name}</p>
-                  <p className="text-sm text-gray-600">{currentUser.email}</p>
-                </div>
-              )}
+        <div className="mb-8">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-[#3e5f44] mb-2">Vendor Auctions</h1>
+              <p className="text-[#3e5f44]/70">Browse and bid on available e-waste items</p>
             </div>
+            {currentUser && (
+              <div className="text-right">
+                <p className="text-sm text-[#3e5f44]/60">Logged in as</p>
+                <p className="font-semibold text-[#3e5f44]">{currentUser.name}</p>
+                <p className="text-sm text-[#3e5f44]/70">{currentUser.email}</p>
+              </div>
+            )}
           </div>
+        </div>
 
         {error && (
           <Alert variant="destructive" className="mb-6">
@@ -223,17 +222,17 @@ export default function VendorAuctionsPage() {
         )}
 
         <Tabs defaultValue="browse" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="browse">Browse Auctions ({activeAuctions.length})</TabsTrigger>
-            <TabsTrigger value="winning">Winning Bids ({myWinningBids.length})</TabsTrigger>
-            <TabsTrigger value="mybids">My Bids ({myActiveBids.length})</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto bg-[#9ac37e]/10 border-2 border-[#3e5f44] rounded-none">
+            <TabsTrigger value="browse" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20">Browse Auctions ({activeAuctions.length})</TabsTrigger>
+            <TabsTrigger value="winning" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20">Winning Bids ({myWinningBids.length})</TabsTrigger>
+            <TabsTrigger value="mybids" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20">My Bids ({myActiveBids.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="browse" className="space-y-4">
             {activeAuctions.length === 0 ? (
-              <Card>
+              <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
                 <CardContent className="text-center py-12">
-                  <p className="text-gray-500">No active auctions available</p>
+                  <p className="text-[#3e5f44]/70">No active auctions available</p>
                 </CardContent>
               </Card>
             ) : (
@@ -242,18 +241,18 @@ export default function VendorAuctionsPage() {
                 const minBid = getMinBid(auction)
                 
                 return (
-                  <Card key={auction.id}>
+                  <Card key={auction.id} className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <div>
-                          <CardTitle className="text-lg">Item ID: {auction.item_id}</CardTitle>
-                          <CardDescription>
+                          <CardTitle className="text-[#3e5f44] text-lg sm:text-xl font-bold">Item ID: {auction.item_id}</CardTitle>
+                          <CardDescription className="text-[#3e5f44]/70">
                             Started {formatDistanceToNow(new Date(auction.start_time))} ago
                           </CardDescription>
                         </div>
                         <div className="text-right">
-                          <Badge className="bg-green-500">Active</Badge>
-                          <div className="text-sm text-gray-500 mt-1">
+                          <Badge className="bg-[#9ac37e] text-white hover:bg-[#8bb56f]">Active</Badge>
+                          <div className="text-sm text-[#3e5f44]/60 mt-1">
                             {getTimeRemaining(auction.end_time)}
                           </div>
                         </div>
@@ -261,35 +260,35 @@ export default function VendorAuctionsPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-600">Starting Price</h4>
-                          <p className="text-lg">₹{auction.starting_price}</p>
+                        <div className="rounded-md border border-[#9ac37e]/30 p-4 bg-gradient-to-br from-[#9ac37e]/5 to-transparent">
+                          <h4 className="font-semibold text-sm text-[#3e5f44]/70">Starting Price</h4>
+                          <p className="text-lg font-bold text-[#3e5f44]">₹{auction.starting_price}</p>
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-600">Current Highest</h4>
-                          <p className="text-lg font-bold text-green-600">
+                        <div className="rounded-md border border-[#9ac37e]/30 p-4 bg-gradient-to-br from-[#9ac37e]/5 to-transparent">
+                          <h4 className="font-semibold text-sm text-[#3e5f44]/70">Current Highest</h4>
+                          <p className="text-lg font-bold text-[#9ac37e]">
                             {auction.current_highest_bid ? `₹${auction.current_highest_bid}` : "No bids"}
                           </p>
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-600">Minimum Bid</h4>
-                          <p className="text-lg font-bold text-blue-600">₹{minBid}</p>
+                        <div className="rounded-md border border-[#9ac37e]/30 p-4 bg-gradient-to-br from-[#9ac37e]/5 to-transparent">
+                          <h4 className="font-semibold text-sm text-[#3e5f44]/70">Minimum Bid</h4>
+                          <p className="text-lg font-bold text-[#3e5f44]">₹{minBid}</p>
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-600">My Status</h4>
+                        <div className="rounded-md border border-[#9ac37e]/30 p-4 bg-gradient-to-br from-[#9ac37e]/5 to-transparent">
+                          <h4 className="font-semibold text-sm text-[#3e5f44]/70">My Status</h4>
                           {myBid ? (
                             <Badge variant={myBid.status === "winning" ? "default" : "secondary"}>
                               {myBid.status === "winning" ? "Winning" : "Outbid"}
                             </Badge>
                           ) : (
-                            <p className="text-sm text-gray-500">Not bidding</p>
+                            <p className="text-sm text-[#3e5f44]/60">Not bidding</p>
                           )}
                         </div>
                       </div>
 
                       {myBid && (
-                        <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                          <p className="text-sm text-blue-800">
+                        <div className="mb-4 p-3 bg-gradient-to-r from-[#9ac37e]/10 to-transparent border border-[#9ac37e]/30 rounded-lg">
+                          <p className="text-sm text-[#3e5f44]">
                             Your current bid: ₹{myBid.amount} ({myBid.status})
                           </p>
                         </div>
@@ -315,6 +314,7 @@ export default function VendorAuctionsPage() {
                         <Button
                           onClick={() => placeBid(auction)}
                           disabled={bidding[auction.id] || !bidAmounts[auction.id]}
+                          className="bg-[#3e5f44] hover:bg-[#4a6e50] text-white"
                         >
                           {bidding[auction.id] ? "Placing Bid..." : "Place Bid"}
                         </Button>
@@ -328,9 +328,9 @@ export default function VendorAuctionsPage() {
 
           <TabsContent value="winning" className="space-y-4">
             {myWinningBids.length === 0 ? (
-              <Card>
+              <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
                 <CardContent className="text-center py-12">
-                  <p className="text-gray-500">No winning bids yet</p>
+                  <p className="text-[#3e5f44]/70">No winning bids yet</p>
                 </CardContent>
               </Card>
             ) : (
@@ -339,31 +339,31 @@ export default function VendorAuctionsPage() {
                 if (!auction) return null
                 
                 return (
-                  <Card key={bid.id}>
+                  <Card key={bid.id} className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <div>
-                          <CardTitle className="text-lg">Item ID: {auction.item_id}</CardTitle>
-                          <CardDescription>
+                          <CardTitle className="text-[#3e5f44] text-lg sm:text-xl font-bold">Item ID: {auction.item_id}</CardTitle>
+                          <CardDescription className="text-[#3e5f44]/70">
                             Bid placed {formatDistanceToNow(new Date(bid.bid_time))} ago
                           </CardDescription>
                         </div>
-                        <Badge className="bg-green-500">Winning</Badge>
+                        <Badge className="bg-[#9ac37e] text-white hover:bg-[#8bb56f]">Winning</Badge>
                       </div>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-600">Your Bid</h4>
-                          <p className="text-lg font-bold text-green-600">₹{bid.amount}</p>
+                        <div className="rounded-md border border-[#9ac37e]/30 p-4 bg-gradient-to-br from-[#9ac37e]/5 to-transparent">
+                          <h4 className="font-semibold text-sm text-[#3e5f44]/70">Your Bid</h4>
+                          <p className="text-lg font-bold text-[#9ac37e]">₹{bid.amount}</p>
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-600">Starting Price</h4>
-                          <p className="text-lg">₹{auction.starting_price}</p>
+                        <div className="rounded-md border border-[#9ac37e]/30 p-4 bg-gradient-to-br from-[#9ac37e]/5 to-transparent">
+                          <h4 className="font-semibold text-sm text-[#3e5f44]/70">Starting Price</h4>
+                          <p className="text-lg font-bold text-[#3e5f44]">₹{auction.starting_price}</p>
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-600">Time Remaining</h4>
-                          <p className="text-lg">{getTimeRemaining(auction.end_time)}</p>
+                        <div className="rounded-md border border-[#9ac37e]/30 p-4 bg-gradient-to-br from-[#9ac37e]/5 to-transparent">
+                          <h4 className="font-semibold text-sm text-[#3e5f44]/70">Time Remaining</h4>
+                          <p className="text-lg font-bold text-[#3e5f44]">{getTimeRemaining(auction.end_time)}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -375,9 +375,9 @@ export default function VendorAuctionsPage() {
 
           <TabsContent value="mybids" className="space-y-4">
             {myActiveBids.length === 0 ? (
-              <Card>
+              <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
                 <CardContent className="text-center py-12">
-                  <p className="text-gray-500">No active bids</p>
+                  <p className="text-[#3e5f44]/70">No active bids</p>
                 </CardContent>
               </Card>
             ) : (
@@ -386,39 +386,40 @@ export default function VendorAuctionsPage() {
                 if (!auction) return null
                 
                 return (
-                  <Card key={bid.id}>
+                  <Card key={bid.id} className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <div>
-                          <CardTitle className="text-lg">Item ID: {auction.item_id}</CardTitle>
-                          <CardDescription>
+                          <CardTitle className="text-[#3e5f44] text-lg sm:text-xl font-bold">Item ID: {auction.item_id}</CardTitle>
+                          <CardDescription className="text-[#3e5f44]/70">
                             Bid placed {formatDistanceToNow(new Date(bid.bid_time))} ago
                           </CardDescription>
                         </div>
-                        <Badge variant={bid.status === "outbid" ? "destructive" : "secondary"}>
+                        <Badge variant={bid.status === "outbid" ? "destructive" : "secondary"}
+                               className={bid.status === "winning" ? "bg-[#9ac37e] text-white hover:bg-[#8bb56f]" : ""}>
                           {bid.status}
                         </Badge>
                       </div>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-600">Your Bid</h4>
-                          <p className="text-lg font-bold">₹{bid.amount}</p>
+                        <div className="rounded-md border border-[#9ac37e]/30 p-4 bg-gradient-to-br from-[#9ac37e]/5 to-transparent">
+                          <h4 className="font-semibold text-sm text-[#3e5f44]/70">Your Bid</h4>
+                          <p className="text-lg font-bold text-[#3e5f44]">₹{bid.amount}</p>
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-600">Current Highest</h4>
-                          <p className="text-lg font-bold text-green-600">
+                        <div className="rounded-md border border-[#9ac37e]/30 p-4 bg-gradient-to-br from-[#9ac37e]/5 to-transparent">
+                          <h4 className="font-semibold text-sm text-[#3e5f44]/70">Current Highest</h4>
+                          <p className="text-lg font-bold text-[#9ac37e]">
                             ₹{auction.current_highest_bid || "No bids"}
                           </p>
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-600">Starting Price</h4>
-                          <p className="text-lg">₹{auction.starting_price}</p>
+                        <div className="rounded-md border border-[#9ac37e]/30 p-4 bg-gradient-to-br from-[#9ac37e]/5 to-transparent">
+                          <h4 className="font-semibold text-sm text-[#3e5f44]/70">Starting Price</h4>
+                          <p className="text-lg font-bold text-[#3e5f44]">₹{auction.starting_price}</p>
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-600">Time Remaining</h4>
-                          <p className="text-lg">{getTimeRemaining(auction.end_time)}</p>
+                        <div className="rounded-md border border-[#9ac37e]/30 p-4 bg-gradient-to-br from-[#9ac37e]/5 to-transparent">
+                          <h4 className="font-semibold text-sm text-[#3e5f44]/70">Time Remaining</h4>
+                          <p className="text-lg font-bold text-[#3e5f44]">{getTimeRemaining(auction.end_time)}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -428,8 +429,7 @@ export default function VendorAuctionsPage() {
             )}
           </TabsContent>
         </Tabs>
-      </div>
-      </div>
-    </div>
+      </section>
+    </main>
   )
 }

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-button {
+            background: #3e5f44;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 14px;
+        }
+        .test-button:hover {
+            background: #4a6e50;
+        }
+        .console-output {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: monospace;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 PDF Functionality Debug Test</h1>
+    <p>Use these buttons to test different aspects of the PDF functionality:</p>
+    
+    <button class="test-button" onclick="testAPI()">Test API Endpoint</button>
+    <button class="test-button" onclick="testPDFLibraries()">Test PDF Libraries</button>
+    <button class="test-button" onclick="testSimplePDF()">Generate Simple PDF</button>
+    <button class="test-button" onclick="testFullReport()">Test Full Report PDF</button>
+    <button class="test-button" onclick="clearConsole()">Clear Output</button>
+    
+    <div id="console-output" class="console-output">Console output will appear here...\n</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    
+    <script>
+        // Console output capture
+        const outputDiv = document.getElementById('console-output');
+        const originalConsole = { ...console };
+        
+        function addToOutput(type, ...args) {
+            const timestamp = new Date().toLocaleTimeString();
+            const message = `[${timestamp}] ${type.toUpperCase()}: ${args.join(' ')}\n`;
+            outputDiv.textContent += message;
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+            
+            // Also log to real console
+            originalConsole[type](...args);
+        }
+        
+        console.log = (...args) => addToOutput('log', ...args);
+        console.error = (...args) => addToOutput('error', ...args);
+        console.warn = (...args) => addToOutput('warn', ...args);
+        
+        function clearConsole() {
+            outputDiv.textContent = 'Console cleared...\n';
+        }
+        
+        // Test functions
+        async function testAPI() {
+            try {
+                console.log("📡 Testing API endpoint...");
+                const response = await fetch('/api/reports/summary');
+                console.log("API Response status:", response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log("✅ API data received. Total items:", data.total);
+                    console.log("Environmental impact data:", data.environmentalImpact ? "✅ Present" : "❌ Missing");
+                    return data;
+                } else {
+                    console.error("❌ API request failed:", response.statusText);
+                    return null;
+                }
+            } catch (error) {
+                console.error("❌ API error:", error.message);
+                return null;
+            }
+        }
+        
+        async function testPDFLibraries() {
+            try {
+                console.log("📦 Testing PDF libraries...");
+                
+                if (typeof window.jspdf === 'undefined') {
+                    console.error("❌ jsPDF not loaded");
+                    return false;
+                }
+                
+                const { jsPDF } = window.jspdf;
+                console.log("✅ jsPDF loaded successfully");
+                
+                // Test basic PDF creation
+                const doc = new jsPDF();
+                console.log("✅ PDF document created");
+                
+                return true;
+            } catch (error) {
+                console.error("❌ PDF libraries error:", error.message);
+                return false;
+            }
+        }
+        
+        async function testSimplePDF() {
+            try {
+                console.log("📄 Testing simple PDF generation...");
+                
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                doc.text("Test PDF Generated Successfully!", 20, 20);
+                doc.text("Date: " + new Date().toLocaleString(), 20, 30);
+                doc.text("This is a simple test to verify PDF generation works.", 20, 40);
+                
+                // Try to save
+                doc.save('simple-test.pdf');
+                console.log("✅ Simple PDF generation successful!");
+                
+                return true;
+            } catch (error) {
+                console.error("❌ Simple PDF generation error:", error.message);
+                return false;
+            }
+        }
+        
+        async function testFullReport() {
+            try {
+                console.log("📊 Testing full report PDF generation...");
+                
+                // First get API data
+                const apiData = await testAPI();
+                if (!apiData) {
+                    console.error("❌ Cannot test full report without API data");
+                    return false;
+                }
+                
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Add header
+                doc.setFillColor(62, 95, 68);
+                doc.rect(0, 0, 210, 30, 'F');
+                
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(16);
+                doc.text("E-WASTE MANAGEMENT REPORT - TEST", 105, 20, { align: "center" });
+                
+                // Add content
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(12);
+                doc.text(`Total Items: ${apiData.total}`, 20, 50);
+                doc.text(`Report Generated: ${new Date().toLocaleString()}`, 20, 60);
+                
+                if (apiData.environmentalImpact) {
+                    doc.text(`Recovery Rate: ${apiData.environmentalImpact.recoveryRate}%`, 20, 70);
+                    doc.text(`Items Processed: ${apiData.environmentalImpact.totalProcessed}`, 20, 80);
+                }
+                
+                // Add table with status data
+                if (window.jspdf.AutoTable) {
+                    console.log("✅ AutoTable plugin available");
+                    
+                    const statusData = Object.entries(apiData.byStatus)
+                        .filter(([_, count]) => count > 0)
+                        .map(([status, count]) => [status, count.toString()]);
+                    
+                    doc.autoTable({
+                        startY: 90,
+                        head: [['Status', 'Count']],
+                        body: statusData,
+                        theme: 'grid'
+                    });
+                } else {
+                    console.warn("⚠️ AutoTable plugin not available, skipping table");
+                }
+                
+                doc.save('full-report-test.pdf');
+                console.log("✅ Full report PDF generation successful!");
+                
+                return true;
+            } catch (error) {
+                console.error("❌ Full report PDF generation error:", error.message);
+                return false;
+            }
+        }
+        
+        // Auto-run basic tests on load
+        window.addEventListener('load', async () => {
+            console.log("🚀 PDF Debug Test Page Loaded");
+            console.log("Click the buttons above to run individual tests");
+        });
+    </script>
+</body>
+</html>

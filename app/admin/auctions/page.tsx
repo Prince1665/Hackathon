@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import React, { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AppNav } from "@/components/app-nav"
 import { formatDistanceToNow } from "date-fns"
 
 type Auction = {
@@ -101,20 +102,21 @@ export default function AdminAuctionsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center py-12">Loading auction data...</div>
-        </div>
-      </div>
+      <main className="min-h-screen bg-gradient-to-b from-[#9ac37e]/5 to-transparent">
+        <section className="container mx-auto py-4 sm:py-8 px-4 max-w-7xl">
+          <div className="text-center py-12 text-[#3e5f44]">Loading auction data...</div>
+        </section>
+      </main>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
-      <div className="max-w-6xl mx-auto">
+    <main className="min-h-screen bg-gradient-to-b from-[#9ac37e]/5 to-transparent">
+      <AppNav />
+      <section className="container mx-auto py-4 sm:py-8 space-y-4 sm:space-y-8 px-4 max-w-7xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin - Auction Management</h1>
-          <p className="text-gray-600">Monitor and manage all auction activities</p>
+          <h1 className="text-3xl font-bold text-[#3e5f44] mb-2">Admin - Auction Management</h1>
+          <p className="text-[#3e5f44]/70">Monitor and manage all auction activities</p>
         </div>
 
         {error && (
@@ -125,49 +127,49 @@ export default function AdminAuctionsPage() {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card>
+          <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Auctions</CardTitle>
+              <CardTitle className="text-sm font-medium text-[#3e5f44]/70">Total Auctions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{auctions.length}</div>
+              <div className="text-2xl font-bold text-[#3e5f44]">{auctions.length}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-[#3e5f44]/70">Active Auctions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-[#9ac37e]">{activeAuctions.length}</div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Active Auctions</CardTitle>
+              <CardTitle className="text-sm font-medium text-[#3e5f44]/70">Completed Auctions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{activeAuctions.length}</div>
+              <div className="text-2xl font-bold text-[#3e5f44]">{completedAuctions.length}</div>
             </CardContent>
           </Card>
-          
-          <Card>
+
+          <Card className="border-[#9ac37e]/20 shadow-lg hover:shadow-xl transition-all duration-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Completed Auctions</CardTitle>
+              <CardTitle className="text-sm font-medium text-[#3e5f44]/70">Total Revenue</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{completedAuctions.length}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Revenue</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">₹{getTotalRevenue(completedAuctions).toLocaleString()}</div>
+              <div className="text-2xl font-bold text-[#9ac37e]">₹{getTotalRevenue(completedAuctions).toLocaleString()}</div>
             </CardContent>
           </Card>
         </div>
 
         <Tabs defaultValue="active" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="active">Active ({activeAuctions.length})</TabsTrigger>
-            <TabsTrigger value="completed">Completed ({completedAuctions.length})</TabsTrigger>
-            <TabsTrigger value="cancelled">Cancelled ({cancelledAuctions.length})</TabsTrigger>
-            <TabsTrigger value="all">All Auctions ({auctions.length})</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto bg-[#9ac37e]/10 border-2 border-[#3e5f44] rounded-none">
+            <TabsTrigger value="active" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20">Active ({activeAuctions.length})</TabsTrigger>
+            <TabsTrigger value="completed" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20">Completed ({completedAuctions.length})</TabsTrigger>
+            <TabsTrigger value="cancelled" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20">Cancelled ({cancelledAuctions.length})</TabsTrigger>
+            <TabsTrigger value="all" className="border-2 border-[#3e5f44] rounded-none shadow-sm hover:border-[#2d5016] hover:bg-[#9ac37e]/20">All Auctions ({auctions.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="active" className="space-y-4">
@@ -396,7 +398,7 @@ export default function AdminAuctionsPage() {
             )}
           </TabsContent>
         </Tabs>
-      </div>
-    </div>
+      </section>
+    </main>
   )
 }

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Generation Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+    <h1>PDF Generation Test</h1>
+    <button onclick="testPDF()">Test PDF Generation</button>
+    
+    <script>
+        async function testPDF() {
+            try {
+                console.log("🔄 Testing PDF generation...")
+                
+                // Create a new PDF document
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Add title
+                doc.setFontSize(20);
+                doc.setFont("helvetica", "bold");
+                doc.text("Test PDF Report", 14, 20);
+                
+                // Add some content
+                doc.setFontSize(12);
+                doc.setFont("helvetica", "normal");
+                doc.text("This is a test PDF to verify jsPDF functionality.", 14, 40);
+                
+                // Add a table using autoTable
+                doc.autoTable({
+                    head: [['Item', 'Category', 'Status']],
+                    body: [
+                        ['Test Item 1', 'Laptop', 'Collected'],
+                        ['Test Item 2', 'Mobile Phone', 'Recycled'],
+                        ['Test Item 3', 'TV', 'Disposed']
+                    ],
+                    startY: 60
+                });
+                
+                // Save the PDF
+                doc.save('test-report.pdf');
+                console.log("✅ PDF generated successfully!");
+                
+            } catch (error) {
+                console.error("❌ Error generating PDF:", error);
+                alert("Error: " + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
